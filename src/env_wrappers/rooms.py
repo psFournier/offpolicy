@@ -14,7 +14,7 @@ class Rooms(Wrapper):
         return np.array(self.env.unwrapped.rescale([x,y]))
 
     def get_r(self, s, g):
-        term = np.linalg.norm(s-g) < 0.001
+        term = np.linalg.norm(s-g, axis=-1) < 0.001
         reward = term * self.rTerm + (1 - term) * self.rNotTerm
         return term, reward
 
