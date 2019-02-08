@@ -20,7 +20,7 @@ class ReplayBuffer(object):
 
     def sample(self, batchsize, idxs=None):
         res = None
-        if len(self._storage) >= 100*batchsize:
+        if len(self._storage) >= 10*batchsize:
             if idxs is None:
                 idxs = [np.random.randint(0, len(self._storage) - 1) for _ in range(batchsize)]
             exps = []
@@ -47,7 +47,7 @@ class PrioritizedReplayBuffer(ReplayBuffer):
         ReplayBuffer.__init__
         """
         super(PrioritizedReplayBuffer, self).__init__(limit=limit, names=names)
-        self.alpha = 0.6
+        self.alpha = 0
         # self.beta_schedule = LinearSchedule(int(args['--max_steps']),
         #                                initial_p=float(args['--beta0']),
         #                                final_p=1.0)

@@ -5,6 +5,7 @@ from env_wrappers.registration import make
 from docopt import docopt
 from utils.util import softmax
 from dqn import Dqn
+import time
 
 help = """
 
@@ -15,7 +16,7 @@ Options:
   --seed SEED              Random seed
   --inv_grad YES_NO        Gradient inversion near action limits [default: 1]
   --max_steps VAL          Maximum total steps [default: 300000]
-  --ep_steps VAL           Maximum episode steps [default: 200]
+  --ep_steps VAL           Maximum episode steps [default: 10]
   --ep_tasks VAL           Maximum episode tasks [default: 1]
   --log_dir DIR            Logging directory [default: /home/pierre/PycharmProjects/continuous/log/local/]
   --eval_freq VAL          Logging frequency [default: 5000]
@@ -36,6 +37,7 @@ Options:
   --initq VAL              [default: -100]
   --layers VAL             [default: 400,300]
   --her_p VAL              [default: 0.02]
+  --nstep VAL              [default: 4]
 """
 
 if __name__ == '__main__':
@@ -65,25 +67,25 @@ if __name__ == '__main__':
     trajectory = []
     state = env.reset()
     goal = wrapper.get_g()
-
+    t0 = time.time()
     while env_step < int(args['--max_steps']):
 
-        if env_step % int(args['--freq_demo']) == 0:
-            for _ in range(25):
-                demonstration = env_test.get_demo()
-                for exp in wrapper.process_trajectory(demonstration):
-                    agent.buffer.append(exp)
+        # if env_step % int(args['--freq_demo']) == 0:
+        #     for _ in range(25):
+        #         demonstration = env_test.get_demo()
+        #         for exp in wrapper.process_trajectory(demonstration):
+        #             agent.buffer.append(exp)
 
-        exp = {'s0': state.copy(), 'g': goal.copy()}
+        exp = {'s0': state.copy(), 'goal': goal.copy()}
 
         input = [np.expand_dims(i, axis=0) for i in [state, goal]]
         qvals = agent.qvals(input)[0].squeeze()
         action = np.random.choice(range(qvals.shape[0]), p=softmax(qvals, theta=min(1/1e4*env_step,1)))
         a = np.expand_dims(action, axis=1)
         state = env.step(a)[0]
-        term, r = wrapper.get_r(state, goal)
+        term, _ = wrapper.get_r(state, goal)
 
-        exp['a'], exp['t'], exp['r1'], exp['s1'], exp['o'] = a, term, r, state.copy(), np.expand_dims(0, axis=1)
+        exp['a0'], exp['term'], exp['s1'], exp['origin'] = a, term, state.copy(), np.expand_dims(0, axis=1)
 
         trajectory.append(exp.copy())
         agent.train_dqn()
@@ -92,9 +94,7 @@ if __name__ == '__main__':
         episode_step += 1
 
         if term or episode_step >= max_episode_steps:
-            augmented_trajectory = wrapper.process_trajectory(trajectory)
-            for exp in augmented_trajectory:
-                agent.buffer.append(exp)
+            agent.process_trajectory(trajectory)
             trajectory.clear()
             state = env.reset()
             goal = wrapper.get_g()
@@ -121,6 +121,9 @@ if __name__ == '__main__':
                     R += r_eval
             logger.logkv('average return', R / n)
             logger.dumpkvs()
+            t1 = time.time()
+            print(t1- t0)
+            t0 = t1
 
 
 

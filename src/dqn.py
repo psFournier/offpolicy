@@ -22,13 +22,15 @@ class Dqn(object):
         self.gamma = 0.99
         self.margin = float(args['--margin'])
         self.layers = [int(l) for l in args['--layers'].split(',')]
+        self.her_p = float(args['--her_p'])
+        self.nstep = int(args['--nstep'])
 
         self.num_actions = wrapper.action_dim
         self.initModels()
         self.initTargetModels()
 
-        self.names = ['s0', 'a', 's1', 'r1', 'g', 'o', 't']
-        self.buffer = PrioritizedReplayBuffer(limit=int(5e4), names=self.names)
+        self.names = ['s0', 'a0', 's1', 'goal', 'origin', 'term', 'next']
+        self.buffer = ReplayBuffer(limit=int(5e4), names=self.names)
         self.batch_size = int(args['--batchsize'])
         self.train_step = 1
 
@@ -83,15 +85,6 @@ class Dqn(object):
     def target_train(self):
         self.targetmodel.set_weights(self.model.get_weights())
 
-    def get_targets_dqn(self, s, r, t, g):
-        qvals = self.qvals([s, g])[0]
-        actions = np.argmax(qvals, axis=1)
-        a1 = np.expand_dims(np.array(actions), axis=1)
-        q = self.targetqval([s, g, a1])[0]
-        targets = r + (1 - t) * self.gamma * q.squeeze()
-        targets = np.clip(targets, self.wrapper.rNotTerm / (1 - self.wrapper.gamma), self.wrapper.rTerm)
-        return np.expand_dims(targets, axis=1)
-
     def create_critic_network(self, S, G):
         h = concatenate([subtract([S, G]), S])
         for l in self.layers:
@@ -105,18 +98,51 @@ class Dqn(object):
                          bias_initializer=RandomUniform(minval=-3e-4, maxval=3e-4))(h)
         return Q_values
 
+    def process_trajectory(self, trajectory):
+        for i, exp in enumerate(trajectory):
+            if i==len(trajectory)-1:
+                exp['next'] = None
+            else:
+                exp['next'] = trajectory[i+1]
+            self.buffer.append(exp)
+
+            ### Hindsight exp replay
+            # for vg in virtual_g:
+            #     exp['g'] = vg
+            #     exp['t'], exp['r1'] = self.wrapper.get_r(exp['s1'], vg)
+            #     res.append(exp.copy())
+            # if np.random.rand() < self.her_p:
+            #     virtual_g.append(exp['s0'])
+
+    # def get_targets_dqn(self, s, r, t, g):
+    #     qvals = self.qvals([s, g])[0]
+    #     actions = np.argmax(qvals, axis=1)
+    #     a1 = np.expand_dims(np.array(actions), axis=1)
+    #     q = self.targetqval([s, g, a1])[0]
+    #     targets = r + (1 - t) * self.gamma * q.squeeze()
+    #     targets = np.clip(targets, self.wrapper.rNotTerm / (1 - self.wrapper.gamma), self.wrapper.rTerm)
+    #     return np.expand_dims(targets, axis=1)
+
+    def get_targets_dqn(self, samples):
+        s1 = samples['s1']
+        goal = samples['goal']
+        qvals = self.qvals([s1, goal])[0]
+        actions = np.argmax(qvals, axis=1)
+        a1 = np.expand_dims(np.array(actions), axis=1)
+        bootstrap = self.targetqval([s1, goal, a1])[0]
+        t, r = self.wrapper.get_r(s1, goal)
+        targets = r + (1 - t) * self.gamma * bootstrap.squeeze()
+        return np.expand_dims(targets, axis=1)
+
     def train_dqn(self):
         samples = self.buffer.sample(self.batch_size)
         if samples is not None:
-            s1 = samples['s1']
-            r1 = samples['r1']
-            t = samples['t']
-            g = samples['g']
-            targets = self.get_targets_dqn(s1, r1, t, g)
+            targets = self.get_targets_dqn(samples)
+            goal = samples['goal']
             s0 = samples['s0']
-            a = samples['a']
-            o = samples['o']
-            inputs = [s0, a, g, targets, o]
+            a0 = samples['a0']
+            origin = samples['origin']
+            inputs = [s0, a0, goal, targets, origin]
             loss, qval, l2_loss, imit_loss = self.train(inputs)
             self.train_step += 1
         if self.train_step % 1000 == 0:
