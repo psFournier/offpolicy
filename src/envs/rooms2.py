@@ -39,23 +39,25 @@ class Obj():
     def low(self):
         return [0]
 
-class Rooms1(Env):
+class Rooms2(Env):
     metadata = {'render.modes': ['human', 'ansi']}
 
     def __init__(self, args):
-        self.desc = np.asarray([
-            " _ _ _ _ _ _ _ _ _ _ ",
-            "|         |         |",
-            "|         |         |",
-            "|                   |",
-            "|         |         |",
-            "|_ _   _ _|_ _   _ _|",
-            "|         |         |",
-            "|         |         |",
-            "|                   |",
-            "|         |         |",
-            "|_ _ _ _ _|_ _ _ _ _|",
-        ], dtype='c')
+        self.desc = np.array([
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
+            [1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1],
+            [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        ])
         self.nR = self.desc.shape[0]-1
         self.nC = (self.desc.shape[1]-1)/2
         self.tutoronly = [int(f) for f in args['--tutoronly'].split(',')]
@@ -63,10 +65,7 @@ class Rooms1(Env):
 
 
     def initialize(self):
-        # self.x = np.random.randint(self.nR)
-        # self.y = np.random.randint(self.nC)
-        self.x = 2
-        self.y = 2
+        self.x, self.y = 2, 2
         self.objects = []
 
         for i, o in enumerate(self.objects):
@@ -77,9 +76,9 @@ class Rooms1(Env):
 
     def step(self, a, tutor=False):
         env_a = a
-        if self.lastaction is not None and np.random.rand() < 0.2:
+        if self.lastaction is not None and np.random.rand() < 0:
             env_a = self.lastaction
-            # print('noise')
+            print('noise')
         self.lastaction = a
 
         if env_a == Actions.UP and self.desc[1 + self.x, 1 + 2 * self.y] == b" ":
@@ -171,7 +170,7 @@ class Rooms1(Env):
         out[1 + goal[0]][1 + 2 * goal[1]] = utils.colorize(out[1 + goal[0]][1 + 2 * goal[1]], 'green', highlight=True)
         outfile.write("\n".join(["".join(row) for row in out])+"\n")
         if self.lastaction is not None:
-            outfile.write("  ({})\n".format(["Up", "Down", "Left","Right",][self.lastaction[0]]))
+            outfile.write("  ({})\n".format(["South", "North", "East", "West"][self.lastaction[0]]))
         else: outfile.write("\n")
 
 if __name__ == '__main__':

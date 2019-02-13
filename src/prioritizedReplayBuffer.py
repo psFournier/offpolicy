@@ -18,19 +18,20 @@ class ReplayBuffer(object):
             self._storage[self._next_idx] = item
         self._next_idx = (self._next_idx + 1) % self._limit
 
-    def sample(self, batchsize, idxs=None):
+    def sample(self, batchsize, idxs=None, beta=None):
         res = None
-        if len(self._storage) >= 10*batchsize:
+        if len(self._storage) >= 100*batchsize:
             if idxs is None:
                 idxs = [np.random.randint(0, len(self._storage) - 1) for _ in range(batchsize)]
             exps = []
             for i in idxs:
                 exps.append(self._storage[i])
             res = {name: np.array([exp[name] for exp in exps]) for name in self._names}
+            res['weights'] = np.ones(shape=(batchsize,1))
         return res
 
 class PrioritizedReplayBuffer(ReplayBuffer):
-    def __init__(self, limit, names):
+    def __init__(self, limit, names, alpha=0):
         """Create Prioritized Replay buffer.
 
         Parameters
@@ -47,15 +48,10 @@ class PrioritizedReplayBuffer(ReplayBuffer):
         ReplayBuffer.__init__
         """
         super(PrioritizedReplayBuffer, self).__init__(limit=limit, names=names)
-        self.alpha = 0
-        # self.beta_schedule = LinearSchedule(int(args['--max_steps']),
-        #                                initial_p=float(args['--beta0']),
-        #                                final_p=1.0)
+        self.alpha = alpha
+
         self.epsilon = 1e-6
-        # self.epsilon_a = 0.001
-        # self.epsilon_d = 1.
-        # self.epsilon_a = None
-        # self.epsilon_d = None
+
 
         it_capacity = 1
         while it_capacity < limit:
@@ -73,8 +69,8 @@ class PrioritizedReplayBuffer(ReplayBuffer):
 
     def _sample_proportional(self, batch_size):
         res = []
+        sum = self._it_sum.sum(0, len(self._storage) - 1)
         for _ in range(batch_size):
-            sum = self._it_sum.sum(0, len(self._storage) - 1)
             mass = np.random.random() * sum
             idx = self._it_sum.find_prefixsum_idx(mass)
             res.append(idx)
@@ -102,13 +98,11 @@ class PrioritizedReplayBuffer(ReplayBuffer):
             for idx in idxes:
                 p_sample = self._it_sum[idx] / self._it_sum.sum()
                 weight = (p_sample * len(self._storage)) ** (-beta)
-                weights.append(weight / max_weight)
+                weights.append(np.expand_dims(weight / max_weight, axis=1))
 
-            weights = np.array(weights)
-
-            result = super(PrioritizedReplayBuffer, self).sample(batch_size, idxes)
-            result['indices'] = np.array(idxes)
-            result['weights'] = weights
+            res = super(PrioritizedReplayBuffer, self).sample(batch_size, idxes)
+            res['indices'] = np.array(idxes)
+            res['weights'] = np.array(weights)
 
         return res
 

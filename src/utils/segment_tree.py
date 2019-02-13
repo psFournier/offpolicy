@@ -90,6 +90,24 @@ class SegmentTree(object):
         assert 0 <= idx < self._capacity
         return self._value[self._capacity + idx]
 
+    def _update(self, node):
+        if 2 * node >= self._capacity:
+            val = self._operation(self._value[2*node], self._value[2 * node + 1])
+        else:
+            left = self._update(2 * node)
+            right = self._update(2 * node + 1)
+            val = self._operation(left, right)
+        self._value[node] = val
+
+    def update(self):
+        self._update(1)
+
+    def set_and_update(self, indices, values):
+        for idx, val in zip(indices, values):
+            idx += self._capacity
+            self._value[idx] = val
+        self.update()
+
 
 class SumSegmentTree(SegmentTree):
     def __init__(self, capacity):

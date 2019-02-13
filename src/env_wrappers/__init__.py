@@ -5,3 +5,9 @@ register(
     entry_point='envs:Rooms1',
     wrapper_entry_point='env_wrappers.rooms:Rooms'
 )
+
+# register(
+#     id='Rooms2-v0',
+#     entry_point='envs:Rooms2',
+#     wrapper_entry_point='env_wrappers.rooms2:Rooms2'
+# )

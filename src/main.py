@@ -6,6 +6,8 @@ from docopt import docopt
 from utils.util import softmax
 from dqn import Dqn
 import time
+import os
+from keras.models import load_model
 
 help = """
 
@@ -15,10 +17,10 @@ Usage:
 Options:
   --seed SEED              Random seed
   --inv_grad YES_NO        Gradient inversion near action limits [default: 1]
-  --max_steps VAL          Maximum total steps [default: 300000]
-  --ep_steps VAL           Maximum episode steps [default: 10]
+  --max_steps VAL          Maximum total steps [default: 800000]
+  --ep_steps VAL           Maximum episode steps [default: 200]
   --ep_tasks VAL           Maximum episode tasks [default: 1]
-  --log_dir DIR            Logging directory [default: /home/pierre/PycharmProjects/continuous/log/local/]
+  --log_dir DIR            Logging directory [default: /home/pierre/PycharmProjects/offpolicy/log/local/]
   --eval_freq VAL          Logging frequency [default: 5000]
   --margin VAL             Large margin loss margin [default: 1]
   --gamma VAL              Discount factor [default: 0.99]
@@ -29,15 +31,15 @@ Options:
   --filter VAL             network type [default: 0]
   --prop_demo VAL             network type [default: 0.02]
   --freq_demo VAL             network type [default: 100000000]
-  --her VAL                [default: 0]
   --lrimit VAL             network type [default: 0.001]
   --rndv VAL               [default: 0]
   --demo VAL               [default: -1]
   --tutoronly VAL          [default: -1]
   --initq VAL              [default: -100]
   --layers VAL             [default: 400,300]
-  --her_p VAL              [default: 0.02]
-  --nstep VAL              [default: 4]
+  --her_p VAL              [default: 0.01]
+  --nstep VAL              [default: 1]
+  --alpha VAL              [default: 0]
 """
 
 if __name__ == '__main__':
@@ -58,6 +60,7 @@ if __name__ == '__main__':
 
     agent = Dqn(args, wrapper)
 
+    model = load_model('../log/local/3_Rooms1-v0/20190212112608_490218/log_steps/model')
     demo = [int(f) for f in args['--demo'].split(',')]
     imit_steps = int(float(args['--freq_demo']) * float(args['--prop_demo']))
     max_episode_steps = int(args['--ep_steps'])
@@ -72,20 +75,36 @@ if __name__ == '__main__':
 
         # if env_step % int(args['--freq_demo']) == 0:
         #     for _ in range(25):
-        #         demonstration = env_test.get_demo()
-        #         for exp in wrapper.process_trajectory(demonstration):
-        #             agent.buffer.append(exp)
+        #         s = env_test.reset()
+        #         x = np.random.randint(env_test.nR)
+        #         y = np.random.randint(env_test.nC)
+        #         g = np.array(env_test.rescale([x, y]))
+        #         i = 0
+        #         demo = []
+        #         while np.linalg.norm(s - g, axis=-1) > 0.001 and i < 200:
+        #             exp = {'s0': s.copy()}
+        #             input = [np.expand_dims(i, axis=0) for i in [s, g]]
+        #             qvals = model.predict(input)[0].squeeze()
+        #             action = np.argmax(qvals, axis=0)
+        #             a = np.expand_dims(action, axis=1)
+        #             s = env_test.step(a)[0]
+        #             i += 1
+        #             exp['a0'], exp['s1'], exp['origin'] = a, s.copy(), np.expand_dims(1, axis=1)
+        #             demo.append(exp.copy())
+        #         agent.process_trajectory(demo)
 
         exp = {'s0': state.copy(), 'goal': goal.copy()}
 
         input = [np.expand_dims(i, axis=0) for i in [state, goal]]
         qvals = agent.qvals(input)[0].squeeze()
-        action = np.random.choice(range(qvals.shape[0]), p=softmax(qvals, theta=min(1/1e4*env_step,1)))
+        probs = softmax(qvals, theta=min(1/1e4*env_step,1))
+        action = np.random.choice(range(qvals.shape[0]), p=probs)
         a = np.expand_dims(action, axis=1)
         state = env.step(a)[0]
         term, _ = wrapper.get_r(state, goal)
 
         exp['a0'], exp['term'], exp['s1'], exp['origin'] = a, term, state.copy(), np.expand_dims(0, axis=1)
+        # exp['p0'] = probs[action]
 
         trajectory.append(exp.copy())
         agent.train_dqn()
@@ -124,6 +143,10 @@ if __name__ == '__main__':
             t1 = time.time()
             print(t1- t0)
             t0 = t1
+            agent.model.save(os.path.join(logger.get_dir(), 'model'), overwrite=True)
+
+
+
 
 
 
