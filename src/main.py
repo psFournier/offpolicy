@@ -5,6 +5,7 @@ from env_wrappers.registration import make
 from docopt import docopt
 from utils.util import softmax
 from dqn import Dqn
+from TB import TB
 import time
 import os
 from keras.models import load_model
@@ -64,7 +65,7 @@ if __name__ == '__main__':
         env.seed(seed)
         env_test.seed(seed)
 
-    agent = Dqn(args, wrapper)
+    agent = TB(args, wrapper)
     stats = {'target_mean': 0,
              'train_step': 0,
              'goal_freq': np.zeros(shape=(10,10)),

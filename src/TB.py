@@ -13,7 +13,7 @@ import tensorflow as tf
 from utils.util import softmax
 import time
 
-class Dqn(object):
+class TB(object):
     def __init__(self, args, wrapper):
         self.wrapper = wrapper
 
@@ -175,9 +175,9 @@ class Dqn(object):
         t, r = self.wrapper.get_r(s, g)
         G = r.copy()
         gamma = np.ones_like(r)
-        mu = np.ones_like(r)
+        mu = np.ones((self.batch_size, 1))
         a = np.ones_like(samples['a0'])
-        ro = np.ones_like(r)
+        ro = np.ones((self.batch_size, 1))
         # pi = np.ones(shape=(self.batch_size, self.wrapper.action_dim))
 
         next = samples['next']
@@ -188,13 +188,15 @@ class Dqn(object):
                 a[idx] = next[idx]['a0']
                 mu[idx] *= next[idx]['p0']
                 next[idx] = next[idx]['next']
-            qvals = self.qvals([s[indices], g[indices]])[0]
-            probs = softmax(qvals, theta=1, axis=1)
-            ro[indices] *= probs[np.expand_dims(np.arange(len(indices[0])), axis=1), a[indices]]
-            ro[indices] /= mu[indices]
+
             t[indices], r[indices] = self.wrapper.get_r(s[indices], g[indices])
             gamma[indices] *= self.gamma
-            G[indices] += gamma[indices] * r[indices]
+            qvals = self.qvals([s[indices], g[indices]])[0]
+            probs = softmax(qvals, theta=1, axis=1)
+            qvals[np.expand_dims(np.arange(len(indices[0])), axis=1), a[indices]] = np.expand_dims(gamma[indices] * r[indices], axis=1)
+            ro[indices] *= probs[np.expand_dims(np.arange(len(indices[0])), axis=1), a[indices]]
+            ro[indices] /= mu[indices]
+            G[indices] += np.sum(np.multiply(qvals, probs), axis=1)
 
         qvals = self.qvals([s, g])[0]
         actions = np.argmax(qvals, axis=1)
