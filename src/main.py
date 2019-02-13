@@ -59,8 +59,10 @@ if __name__ == '__main__':
         env_test.seed(seed)
 
     agent = Dqn(args, wrapper)
+    stats = {'target_mean': 0,
+             'train_step': 0}
 
-    model = load_model('../log/local/3_Rooms1-v0/20190212112608_490218/log_steps/model')
+    # model = load_model('../log/local/3_Rooms1-v0/20190212112608_490218/log_steps/model')
     demo = [int(f) for f in args['--demo'].split(',')]
     imit_steps = int(float(args['--freq_demo']) * float(args['--prop_demo']))
     max_episode_steps = int(args['--ep_steps'])
@@ -107,7 +109,10 @@ if __name__ == '__main__':
         # exp['p0'] = probs[action]
 
         trajectory.append(exp.copy())
-        agent.train_dqn()
+        if env_step > 10000:
+            train_stats = agent.train_dqn()
+            stats['target_mean'] += train_stats['target_mean']
+            stats['train_step'] += 1
 
         env_step += 1
         episode_step += 1
@@ -121,6 +126,9 @@ if __name__ == '__main__':
 
         if env_step % int(args['--eval_freq'])== 0:
             logger.logkv('step', env_step)
+            logger.logkv('target_mean', stats['target_mean']/(stats['train_step'] + 1e-5))
+            stats['target_mean'] = 0
+            stats['train_step'] = 0
             R = 0
             n=10
             for i in range(n):

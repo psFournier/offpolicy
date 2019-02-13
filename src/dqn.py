@@ -240,18 +240,20 @@ class Dqn(object):
     #         self.target_train()
 
     def train_dqn(self):
+        train_stats = {}
         beta = min(0.4 + (1 - 0.4) * self.train_step / 5e5, 1)
         samples = self.buffer.sample(self.batch_size, beta=beta)
-        if samples is not None:
-            targets, goal = self.get_targets(samples)
-            s0 = samples['s0']
-            a0 = samples['a0']
-            origin = samples['origin']
-            weights = samples['weights']
-            inputs = [s0, a0, goal, targets, origin, weights]
-            loss, qval, td_errors, imit_loss = self.train(inputs)
-            if self.alpha != 0:
-                self.buffer.update_priorities(samples['indices'], np.abs(td_errors.squeeze()))
-            self.train_step += 1
+        targets, goal = self.get_targets(samples)
+        train_stats['target_mean'] = np.mean(targets)
+        s0 = samples['s0']
+        a0 = samples['a0']
+        origin = samples['origin']
+        weights = samples['weights']
+        inputs = [s0, a0, goal, targets, origin, weights]
+        loss, qval, td_errors, imit_loss = self.train(inputs)
+        if self.alpha != 0:
+            self.buffer.update_priorities(samples['indices'], np.abs(td_errors.squeeze()))
+        self.train_step += 1
         if self.train_step % 1000 == 0:
             self.target_train()
+        return train_stats

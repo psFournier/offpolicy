@@ -19,15 +19,13 @@ class ReplayBuffer(object):
         self._next_idx = (self._next_idx + 1) % self._limit
 
     def sample(self, batchsize, idxs=None, beta=None):
-        res = None
-        if len(self._storage) >= 100*batchsize:
-            if idxs is None:
-                idxs = [np.random.randint(0, len(self._storage) - 1) for _ in range(batchsize)]
-            exps = []
-            for i in idxs:
-                exps.append(self._storage[i])
-            res = {name: np.array([exp[name] for exp in exps]) for name in self._names}
-            res['weights'] = np.ones(shape=(batchsize,1))
+        if idxs is None:
+            idxs = [np.random.randint(0, len(self._storage) - 1) for _ in range(batchsize)]
+        exps = []
+        for i in idxs:
+            exps.append(self._storage[i])
+        res = {name: np.array([exp[name] for exp in exps]) for name in self._names}
+        res['weights'] = np.ones(shape=(batchsize,1))
         return res
 
 class PrioritizedReplayBuffer(ReplayBuffer):
@@ -76,7 +74,7 @@ class PrioritizedReplayBuffer(ReplayBuffer):
             res.append(idx)
         return res
 
-    def sample(self, batch_size, beta=0.4):
+    def sample(self, batch_size, idxs=None, beta=0.4):
         """Sample a batch of experiences.
 
         Parameters
@@ -87,22 +85,20 @@ class PrioritizedReplayBuffer(ReplayBuffer):
             To what degree to use importance weights
             (0 - no corrections, 1 - full correction)
         """
-        res = None
-        if len(self._storage) >= 100 * batch_size:
-            idxes = self._sample_proportional(batch_size)
+        idxes = self._sample_proportional(batch_size)
 
-            weights = []
-            p_min = self._it_min.min() / self._it_sum.sum()
-            max_weight = (p_min * len(self._storage)) ** (-beta)
+        weights = []
+        p_min = self._it_min.min() / self._it_sum.sum()
+        max_weight = (p_min * len(self._storage)) ** (-beta)
 
-            for idx in idxes:
-                p_sample = self._it_sum[idx] / self._it_sum.sum()
-                weight = (p_sample * len(self._storage)) ** (-beta)
-                weights.append(np.expand_dims(weight / max_weight, axis=1))
+        for idx in idxes:
+            p_sample = self._it_sum[idx] / self._it_sum.sum()
+            weight = (p_sample * len(self._storage)) ** (-beta)
+            weights.append(np.expand_dims(weight / max_weight, axis=1))
 
-            res = super(PrioritizedReplayBuffer, self).sample(batch_size, idxes)
-            res['indices'] = np.array(idxes)
-            res['weights'] = np.array(weights)
+        res = super(PrioritizedReplayBuffer, self).sample(batch_size, idxes)
+        res['indices'] = np.array(idxes)
+        res['weights'] = np.array(weights)
 
         return res
 
