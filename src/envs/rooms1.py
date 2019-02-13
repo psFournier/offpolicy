@@ -134,6 +134,9 @@ class Rooms1(Env):
     def rescale(self, state):
         return [(a - c) / (b - c) for a, b, c in zip(state, self.high, self.low)]
 
+    def unscale(self, state):
+        return [a *(b-c) + c for a, b, c in zip(state, self.high, self.low)]
+
     @property
     def state(self):
         res = [self.x, self.y] + [obj.state for obj in self.objects]

@@ -8,6 +8,7 @@ from dqn import Dqn
 import time
 import os
 from keras.models import load_model
+from utils.logger import Logger
 
 help = """
 
@@ -46,7 +47,12 @@ if __name__ == '__main__':
 
     args = docopt(help)
 
-    logger = build_logger(args)
+    log_dir = build_logger(args)
+    loggerTB = Logger(dir=log_dir,
+                      format_strs=['tensorboard_{}'.format(int(args['--eval_freq'])),
+                                   'stdout'])
+    loggerJSON = Logger(dir=log_dir,
+                        format_strs=['json'])
     env, wrapper = make(args['--env'], args)
     env_test, wrapper_test = make(args['--env'], args)
 
@@ -60,7 +66,8 @@ if __name__ == '__main__':
 
     agent = Dqn(args, wrapper)
     stats = {'target_mean': 0,
-             'train_step': 0}
+             'train_step': 0,
+             'goal_freq': np.zeros(shape=(10,10))}
 
     # model = load_model('../log/local/3_Rooms1-v0/20190212112608_490218/log_steps/model')
     demo = [int(f) for f in args['--demo'].split(',')]
@@ -113,6 +120,9 @@ if __name__ == '__main__':
             train_stats = agent.train_dqn()
             stats['target_mean'] += train_stats['target_mean']
             stats['train_step'] += 1
+            for goal in train_stats['goals']:
+                x, y = env.unscale(goal)
+                stats['goal_freq'][int(x)][int(y)] += 1
 
         env_step += 1
         episode_step += 1
@@ -125,10 +135,7 @@ if __name__ == '__main__':
             episode_step = 0
 
         if env_step % int(args['--eval_freq'])== 0:
-            logger.logkv('step', env_step)
-            logger.logkv('target_mean', stats['target_mean']/(stats['train_step'] + 1e-5))
-            stats['target_mean'] = 0
-            stats['train_step'] = 0
+
             R = 0
             n=10
             for i in range(n):
@@ -146,12 +153,22 @@ if __name__ == '__main__':
                     term_eval, r_eval = wrapper_test.get_r(state_eval, goal_eval)
                     ep_step_eval += 1
                     R += r_eval
-            logger.logkv('average return', R / n)
-            logger.dumpkvs()
+
+            loggerJSON.logkv('goal_freq', stats['goal_freq'])
+            for logger in [loggerJSON, loggerTB]:
+                logger.logkv('step', env_step)
+                logger.logkv('average return', R / n)
+                logger.logkv('target_mean', stats['target_mean'] / (stats['train_step'] + 1e-5))
+                logger.dumpkvs()
+
+            stats['target_mean'] = 0
+            stats['train_step'] = 0
+            stats['goal_freq'] = np.zeros(shape=(10, 10))
+
             t1 = time.time()
             print(t1- t0)
             t0 = t1
-            agent.model.save(os.path.join(logger.get_dir(), 'model'), overwrite=True)
+            agent.model.save(os.path.join(log_dir, 'model'), overwrite=True)
 
 
 

@@ -6,7 +6,6 @@ import numpy as np
 import datetime
 import os
 import json
-from utils.logger import Logger
 
 
 def reduce_var(x, axis=None, keepdims=False):
@@ -36,14 +35,9 @@ def build_logger(args):
     now = datetime.datetime.now()
     log_dir = os.path.join(args['--log_dir'], '_'.join(param_strings), now.strftime("%Y%m%d%H%M%S_%f"))
     os.makedirs(log_dir, exist_ok=True)
-    args['--time'] = now
-    print(args)
     with open(os.path.join(log_dir, 'config.txt'), 'w') as config_file:
         config_file.write(json.dumps(args, default=str))
-    logger = Logger(dir=os.path.join(log_dir,'log_steps'),
-                         format_strs=['json', 'tensorboard_{}'.format(int(args['--eval_freq'])),
-                                      'stdout'.format(int(args['--eval_freq']))])
-    return logger
+    return log_dir
 
 def boolean_flag(parser, name, default=False, help=None):
     """Add a boolean flag to argparse parser.

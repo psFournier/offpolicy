@@ -245,6 +245,7 @@ class Dqn(object):
         samples = self.buffer.sample(self.batch_size, beta=beta)
         targets, goal = self.get_targets(samples)
         train_stats['target_mean'] = np.mean(targets)
+        train_stats['goals'] = goal.squeeze()
         s0 = samples['s0']
         a0 = samples['a0']
         origin = samples['origin']
