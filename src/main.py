@@ -67,7 +67,8 @@ if __name__ == '__main__':
     agent = Dqn(args, wrapper)
     stats = {'target_mean': 0,
              'train_step': 0,
-             'goal_freq': np.zeros(shape=(10,10))}
+             'goal_freq': np.zeros(shape=(10,10)),
+             'ro': 0}
 
     # model = load_model('../log/local/3_Rooms1-v0/20190212112608_490218/log_steps/model')
     demo = [int(f) for f in args['--demo'].split(',')]
@@ -106,20 +107,21 @@ if __name__ == '__main__':
 
         input = [np.expand_dims(i, axis=0) for i in [state, goal]]
         qvals = agent.qvals(input)[0].squeeze()
-        probs = softmax(qvals, theta=min(1/1e4*env_step,1))
+        probs = softmax(qvals, theta=min(1/1e4*agent.train_step, 1))
         action = np.random.choice(range(qvals.shape[0]), p=probs)
         a = np.expand_dims(action, axis=1)
         state = env.step(a)[0]
         term, _ = wrapper.get_r(state, goal)
 
         exp['a0'], exp['term'], exp['s1'], exp['origin'] = a, term, state.copy(), np.expand_dims(0, axis=1)
-        # exp['p0'] = probs[action]
+        exp['p0'] = probs[action]
 
         trajectory.append(exp.copy())
         if env_step > 10000:
             train_stats = agent.train_dqn()
             stats['target_mean'] += train_stats['target_mean']
             stats['train_step'] += 1
+            stats['ro'] += train_stats['ro']
             for goal in train_stats['goals']:
                 x, y = env.unscale(goal)
                 stats['goal_freq'][int(x)][int(y)] += 1
@@ -159,9 +161,11 @@ if __name__ == '__main__':
                 logger.logkv('step', env_step)
                 logger.logkv('average return', R / n)
                 logger.logkv('target_mean', stats['target_mean'] / (stats['train_step'] + 1e-5))
+                logger.logkv('ro', stats['ro'] / (stats['train_step'] + 1e-5))
                 logger.dumpkvs()
 
             stats['target_mean'] = 0
+            stats['ro'] = 0
             stats['train_step'] = 0
             stats['goal_freq'] = np.zeros(shape=(10, 10))
 

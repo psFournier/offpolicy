@@ -29,7 +29,7 @@ class Dqn(object):
         self.initModels()
         self.initTargetModels()
 
-        self.names = ['s0', 'a0',  's1', 'goal', 'origin', 'term', 'next', 'reached']
+        self.names = ['s0', 'a0',  's1', 'goal', 'origin', 'term', 'next', 'reached', 'p0']
         self.alpha = float(args['--alpha'])
         if self.alpha == 0:
             self.buffer = ReplayBuffer(limit=int(5e4), names=self.names)
@@ -175,13 +175,23 @@ class Dqn(object):
         t, r = self.wrapper.get_r(s, g)
         G = r.copy()
         gamma = np.ones_like(r)
+        mu = np.ones_like(r)
+        a = np.ones_like(samples['a0'])
+        ro = np.ones_like(r)
+        # pi = np.ones(shape=(self.batch_size, self.wrapper.action_dim))
 
         next = samples['next']
         for i in range(self.nstep - 1):
             indices = np.where(next != None)
             for idx in indices[0]:
                 s[idx] = next[idx]['s1']
+                a[idx] = next[idx]['a0']
+                mu[idx] *= next[idx]['p0']
                 next[idx] = next[idx]['next']
+            qvals = self.qvals([s[indices], g[indices]])[0]
+            probs = softmax(qvals, theta=1, axis=1)
+            ro[indices] *= probs[np.arange(len(indices)), a[indices].squeeze()]
+            ro[indices] /= mu[indices]
             t[indices], r[indices] = self.wrapper.get_r(s[indices], g[indices])
             gamma[indices] *= self.gamma
             G[indices] += gamma[indices] * r[indices]
@@ -192,7 +202,7 @@ class Dqn(object):
         bootstrap = self.targetqval([s, g, an])[0]
         G += (1 - t) * self.gamma * gamma * bootstrap.squeeze()
         G = np.clip(G, self.wrapper.rNotTerm / (1 - self.wrapper.gamma), self.wrapper.rTerm)
-        return np.expand_dims(G, axis=1), g
+        return np.expand_dims(G, axis=1), g, ro
 
     # def get_targets_dqn(self, samples):
     #     s = samples['s1']
@@ -243,8 +253,9 @@ class Dqn(object):
         train_stats = {}
         beta = min(0.4 + (1 - 0.4) * self.train_step / 5e5, 1)
         samples = self.buffer.sample(self.batch_size, beta=beta)
-        targets, goal = self.get_targets(samples)
+        targets, goal, ro = self.get_targets(samples)
         train_stats['target_mean'] = np.mean(targets)
+        train_stats['ro'] = np.mean(ro)
         train_stats['goals'] = goal.squeeze()
         s0 = samples['s0']
         a0 = samples['a0']
