@@ -39,7 +39,7 @@ Options:
   --tutoronly VAL          [default: -1]
   --initq VAL              [default: -100]
   --layers VAL             [default: 400,300]
-  --her_p VAL              [default: 0.01]
+  --her VAL              [default: 0.01]
   --nstep VAL              [default: 1]
   --alpha VAL              [default: 0]
 """
@@ -65,11 +65,16 @@ if __name__ == '__main__':
         env.seed(seed)
         env_test.seed(seed)
 
-    agent = TB(args, wrapper)
+    if int(args['--agent']) == 0:
+        agent = Dqn(args, wrapper)
+    elif int(args['--agent']) == 1:
+        agent = TB(args, wrapper)
+
     stats = {'target_mean': 0,
              'train_step': 0,
-             'goal_freq': np.zeros(shape=(10,10)),
-             'ro': 0}
+             # 'goal_freq': np.zeros(shape=(10,10)),
+             'ro': 0,
+             'term': 0}
 
     # model = load_model('../log/local/3_Rooms1-v0/20190212112608_490218/log_steps/model')
     demo = [int(f) for f in args['--demo'].split(',')]
@@ -108,7 +113,7 @@ if __name__ == '__main__':
 
         input = [np.expand_dims(i, axis=0) for i in [state, goal]]
         qvals = agent.qvals(input)[0].squeeze()
-        probs = softmax(qvals, theta=min(1/1e4*agent.train_step, 1))
+        probs = softmax(qvals, theta=agent.theta)
         action = np.random.choice(range(qvals.shape[0]), p=probs)
         a = np.expand_dims(action, axis=1)
         state = env.step(a)[0]
@@ -123,9 +128,9 @@ if __name__ == '__main__':
             stats['target_mean'] += train_stats['target_mean']
             stats['train_step'] += 1
             stats['ro'] += train_stats['ro']
-            for goal in train_stats['goals']:
-                x, y = env.unscale(goal)
-                stats['goal_freq'][int(x)][int(y)] += 1
+            # for goal in train_stats['goals']:
+            #     x, y = env.unscale(goal)
+            #     stats['goal_freq'][int(x)][int(y)] += 1
 
         env_step += 1
         episode_step += 1
@@ -136,39 +141,42 @@ if __name__ == '__main__':
             state = env.reset()
             goal = wrapper.get_g()
             episode_step = 0
+            stats['term'] += term
 
         if env_step % int(args['--eval_freq'])== 0:
 
-            R = 0
-            n=10
-            for i in range(n):
-                term_eval, ep_step_eval = 0, 0
-                state_eval = env_test.reset()
-                x = np.random.randint(env_test.nR)
-                y = np.random.randint(env_test.nC)
-                goal_eval = np.array(env_test.rescale([x, y]))
-                while not term_eval and ep_step_eval < max_episode_steps:
-                    input = [np.expand_dims(i, axis=0) for i in [state_eval, goal_eval]]
-                    qvals = agent.qvals(input)[0].squeeze()
-                    action = np.argmax(qvals)
-                    a = np.expand_dims(action, axis=1)
-                    state_eval = env_test.step(a)[0]
-                    term_eval, r_eval = wrapper_test.get_r(state_eval, goal_eval)
-                    ep_step_eval += 1
-                    R += r_eval
+            # R = 0
+            # n=10
+            # for i in range(n):
+            #     term_eval, ep_step_eval = 0, 0
+            #     state_eval = env_test.reset()
+            #     x = np.random.randint(env_test.nR)
+            #     y = np.random.randint(env_test.nC)
+            #     goal_eval = np.array(env_test.rescale([x, y]))
+            #     while not term_eval and ep_step_eval < max_episode_steps:
+            #         input = [np.expand_dims(i, axis=0) for i in [state_eval, goal_eval]]
+            #         qvals = agent.qvals(input)[0].squeeze()
+            #         action = np.argmax(qvals)
+            #         a = np.expand_dims(action, axis=1)
+            #         state_eval = env_test.step(a)[0]
+            #         term_eval, r_eval = wrapper_test.get_r(state_eval, goal_eval)
+            #         ep_step_eval += 1
+            #         R += r_eval
 
-            loggerJSON.logkv('goal_freq', stats['goal_freq'])
+            # loggerJSON.logkv('goal_freq', stats['goal_freq'])
             for logger in [loggerJSON, loggerTB]:
                 logger.logkv('step', env_step)
-                logger.logkv('average return', R / n)
+                # logger.logkv('average return', R / n)
                 logger.logkv('target_mean', stats['target_mean'] / (stats['train_step'] + 1e-5))
                 logger.logkv('ro', stats['ro'] / (stats['train_step'] + 1e-5))
+                logger.logkv('term', stats['term'])
                 logger.dumpkvs()
 
             stats['target_mean'] = 0
             stats['ro'] = 0
             stats['train_step'] = 0
-            stats['goal_freq'] = np.zeros(shape=(10, 10))
+            stats['term'] = 0
+            # stats['goal_freq'] = np.zeros(shape=(10, 10))
 
             t1 = time.time()
             print(t1- t0)

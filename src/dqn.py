@@ -22,8 +22,9 @@ class Dqn(object):
         self.gamma = 0.99
         self.margin = float(args['--margin'])
         self.layers = [int(l) for l in args['--layers'].split(',')]
-        self.her_p = int(args['--her_p'])
+        self.her = int(args['--her'])
         self.nstep = int(args['--nstep'])
+        self.args = args
 
         self.num_actions = wrapper.action_dim
         self.initModels()
@@ -105,12 +106,12 @@ class Dqn(object):
 
     def process_trajectory(self, trajectory):
         l = len(trajectory)
-        idxs = np.random.choice(l, size=min(self.her_p, l), replace=False)
         for i, exp in enumerate(trajectory):
             if i==len(trajectory)-1:
                 exp['next'] = None
             else:
                 exp['next'] = trajectory[i+1]
+            idxs = np.random.choice(range(i, l), size=min(self.her, l-i), replace=False)
             exp['reached'] = [trajectory[idx]['s1'] for idx in idxs if idx >= i]
             self.buffer.append(exp)
 
@@ -164,11 +165,8 @@ class Dqn(object):
 
         g = []
         for i, goal in enumerate(samples['goal']):
-            reached = samples['reached'][i]
-            if list(reached) and np.random.rand() < 0.5:
-                g.append(reached[np.random.choice(len(reached))])
-            else:
-                g.append(goal)
+            l = list(samples['reached'][i]) + [goal]
+            g.append(l[np.random.choice(len(l))])
         g = np.array(g)
 
         s = samples['s1']
@@ -189,7 +187,7 @@ class Dqn(object):
                 mu[idx] *= next[idx]['p0']
                 next[idx] = next[idx]['next']
             qvals = self.qvals([s[indices], g[indices]])[0]
-            probs = softmax(qvals, theta=1, axis=1)
+            probs = softmax(qvals, theta=self.theta, axis=1)
             ro[indices] *= probs[np.expand_dims(np.arange(len(indices[0])), axis=1), a[indices]]
             ro[indices] /= mu[indices]
             t[indices], r[indices] = self.wrapper.get_r(s[indices], g[indices])
@@ -197,6 +195,8 @@ class Dqn(object):
             G[indices] += gamma[indices] * r[indices]
 
         qvals = self.qvals([s, g])[0]
+        probs = softmax(qvals, theta=self.theta, axis=1)
+        # actions = [np.random.choice(range(qvals.shape[1]), p=probs[i]) for i in range(self.batch_size)]
         actions = np.argmax(qvals, axis=1)
         an = np.expand_dims(np.array(actions), axis=1)
         bootstrap = self.targetqval([s, g, an])[0]
@@ -269,3 +269,11 @@ class Dqn(object):
         if self.train_step % 1000 == 0:
             self.target_train()
         return train_stats
+
+    @property
+    def theta(self):
+        if self.train_step < 5e4:
+            theta = self.train_step / 5e4
+        else:
+            theta = 1 + (self.train_step - 5e4) / (int(self.args['--max_steps']) - 5e4)
+        return theta
