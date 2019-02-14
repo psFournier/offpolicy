@@ -70,8 +70,8 @@ class Rooms9(Env):
     def initialize(self):
         self.x = np.random.randint(self.nR)
         self.y = np.random.randint(self.nC)
-        # self.x = 2
-        # self.y = 2
+        # self.x = 7
+        # self.y = 7
         self.objects = []
 
         for i, o in enumerate(self.objects):

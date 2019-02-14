@@ -272,8 +272,8 @@ class Dqn(object):
 
     @property
     def theta(self):
-        if self.train_step < 5e4:
-            theta = self.train_step / 5e4
-        else:
-            theta = 1 + (self.train_step - 5e4) / (int(self.args['--max_steps']) - 5e4)
-        return theta
+        # if self.train_step < 5e4:
+        #     theta = 1
+        # else:
+        #     theta = 1 + 9 * (self.train_step - 5e4) / (int(self.args['--max_steps']) - 5e4)
+        return 1

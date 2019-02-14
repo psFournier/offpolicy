@@ -61,7 +61,6 @@ class Rooms1(Env):
         self.tutoronly = [int(f) for f in args['--tutoronly'].split(',')]
         self.initialize()
 
-
     def initialize(self):
         # self.x = np.random.randint(self.nR)
         # self.y = np.random.randint(self.nC)

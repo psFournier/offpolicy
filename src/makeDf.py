@@ -11,7 +11,7 @@ for run in runs:
 
     config = pd.read_json(os.path.join(run, 'config.txt'), lines=True)
     try:
-        df = pd.read_json(os.path.join(run, 'log_steps', 'progress.json'), lines=True)
+        df = pd.read_json(os.path.join(run, 'progress.json'), lines=True)
         config = pd.concat([config] * df.shape[0], ignore_index=True)
         data = pd.concat([df, config], axis=1)
         data['num_run'] = run.split('/')[5]

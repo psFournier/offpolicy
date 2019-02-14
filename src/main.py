@@ -23,7 +23,7 @@ Options:
   --ep_steps VAL           Maximum episode steps [default: 200]
   --ep_tasks VAL           Maximum episode tasks [default: 1]
   --log_dir DIR            Logging directory [default: /home/pierre/PycharmProjects/offpolicy/log/local/]
-  --eval_freq VAL          Logging frequency [default: 5000]
+  --eval_freq VAL          Logging frequency [default: 2000]
   --margin VAL             Large margin loss margin [default: 1]
   --gamma VAL              Discount factor [default: 0.99]
   --batchsize VAL          Batch size [default: 64]
@@ -75,6 +75,7 @@ if __name__ == '__main__':
              # 'goal_freq': np.zeros(shape=(10,10)),
              'ro': 0,
              'term': 0}
+    nb_ep = 0
 
     # model = load_model('../log/local/3_Rooms1-v0/20190212112608_490218/log_steps/model')
     demo = [int(f) for f in args['--demo'].split(',')]
@@ -117,7 +118,7 @@ if __name__ == '__main__':
         action = np.random.choice(range(qvals.shape[0]), p=probs)
         a = np.expand_dims(action, axis=1)
         state = env.step(a)[0]
-        term, _ = wrapper.get_r(state, goal)
+        term, r = wrapper.get_r(state, goal)
 
         exp['a0'], exp['term'], exp['s1'], exp['origin'] = a, term, state.copy(), np.expand_dims(0, axis=1)
         exp['p0'] = probs[action]
@@ -142,6 +143,7 @@ if __name__ == '__main__':
             goal = wrapper.get_g()
             episode_step = 0
             stats['term'] += term
+            nb_ep += 1
 
         if env_step % int(args['--eval_freq'])== 0:
 
@@ -169,13 +171,14 @@ if __name__ == '__main__':
                 # logger.logkv('average return', R / n)
                 logger.logkv('target_mean', stats['target_mean'] / (stats['train_step'] + 1e-5))
                 logger.logkv('ro', stats['ro'] / (stats['train_step'] + 1e-5))
-                logger.logkv('term', stats['term'])
+                logger.logkv('term', stats['term']/nb_ep)
                 logger.dumpkvs()
 
             stats['target_mean'] = 0
             stats['ro'] = 0
             stats['train_step'] = 0
             stats['term'] = 0
+            nb_ep = 0
             # stats['goal_freq'] = np.zeros(shape=(10, 10))
 
             t1 = time.time()
