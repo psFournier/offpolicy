@@ -192,7 +192,7 @@ class TB(object):
             t[indices], r[indices] = self.wrapper.get_r(s[indices], g[indices])
             gamma[indices] *= self.gamma
             qvals = self.qvals([s[indices], g[indices]])[0]
-            probs = softmax(qvals, theta=1, axis=1)
+            probs = softmax(qvals, theta=self.theta, axis=1)
             qvals[np.expand_dims(np.arange(len(indices[0])), axis=1), a[indices]] = np.expand_dims(gamma[indices] * r[indices], axis=1)
             ro[indices] *= probs[np.expand_dims(np.arange(len(indices[0])), axis=1), a[indices]]
             ro[indices] /= mu[indices]
