@@ -42,6 +42,7 @@ Options:
   --her VAL              [default: 0.01]
   --nstep VAL              [default: 1]
   --alpha VAL              [default: 0]
+  --IS VAL                 [default: 0]
 """
 
 if __name__ == '__main__':

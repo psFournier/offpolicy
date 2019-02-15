@@ -53,10 +53,10 @@ fig, axes = plt.subplots(a, b, figsize=(15,9), squeeze=False, sharex=True)
 
 df1 = df.copy()
 df1 = df1[(df1['--env'] == 'Rooms9-v0')]
-# df1 = df1[(df1['--her_p'] == 4)]
-# df1 = df1[(df1['--nstep'] == 1)]
+# df1 = df1[(df1['--her'] == 4)]
+# df1 = df1[(df1['--nstep'] == 4)]
 
-y = 'ro'
+y = 'term'
 for p in params: print(p, df1[p].unique())
 df1 = df1.groupby(x + params).agg({y:[np.median, np.mean, np.std, quant_inf, quant_sup]}).reset_index()
 p1 = [p for p in params if len(df1[p].unique()) > 1]
@@ -69,5 +69,6 @@ for j, (name, g) in enumerate(df1.groupby(p1)):
                            g[y]['quant_sup'], alpha=0.25, linewidth=0)
     # axes[0, 0].scatter(g['step'], g[y], label=name)
 axes[0, 0].legend()
+# axes[0, 0].set_xlim([0,100000])
 
 plt.show()

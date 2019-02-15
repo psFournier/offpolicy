@@ -196,7 +196,7 @@ class Dqn(object):
         gamma = np.ones_like(r)
         mu = np.ones((self.batch_size, 1))
         a = np.ones_like(samples['a0'])
-        ro = np.ones((self.batch_size, 1))
+        offpolicyness = np.ones((self.batch_size, 1))
         # pi = np.ones(shape=(self.batch_size, self.wrapper.action_dim))
 
         next = samples['next']
@@ -210,12 +210,14 @@ class Dqn(object):
 
             t[indices], r[indices] = self.wrapper.get_r(s[indices], g[indices])
             gamma[indices] *= self.gamma
-
             qvals = self.qvals([s[indices], g[indices]])[0]
             probs = softmax(qvals, theta=self.theta, axis=1)
-            ro[indices] *= (probs[np.expand_dims(np.arange(len(indices[0])), axis=1), a[indices]] / mu[indices])
+            ro = probs[np.expand_dims(np.arange(len(indices[0])), axis=1), a[indices]] / mu[indices]
+            offpolicyness[indices] *= ro
 
             G[indices] += gamma[indices] * r[indices]
+            if int(self.args['--IS']) != 0:
+                G[indices] *= offpolicyness[indices].squeeze()
 
         qvals = self.qvals([s, g])[0]
         probs = softmax(qvals, theta=self.theta, axis=1)
@@ -223,9 +225,12 @@ class Dqn(object):
         actions = np.argmax(qvals, axis=1)
         an = np.expand_dims(np.array(actions), axis=1)
         bootstrap = self.targetqval([s, g, an])[0]
-        G += (1 - t) * self.gamma * gamma * bootstrap.squeeze()
+        corrected_bootstrap = (1 - t) * self.gamma * gamma * bootstrap.squeeze()
+        if int(self.args['--IS']) != 0:
+            corrected_bootstrap *= offpolicyness.squeeze()
+        G += corrected_bootstrap
         G = np.clip(G, self.wrapper.rNotTerm / (1 - self.wrapper.gamma), self.wrapper.rTerm)
-        return np.expand_dims(G, axis=1), g, ro
+        return np.expand_dims(G, axis=1), g, offpolicyness
 
     # def get_targets_dqn(self, samples):
     #     s = samples['s1']
