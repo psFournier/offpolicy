@@ -56,7 +56,7 @@ df1 = df1[(df1['--env'] == 'Rooms9-v0')]
 # df1 = df1[(df1['--her'] == 4)]
 # df1 = df1[(df1['--nstep'] == 4)]
 
-y = 'term'
+y = 'ro'
 for p in params: print(p, df1[p].unique())
 df1 = df1.groupby(x + params).agg({y:[np.median, np.mean, np.std, quant_inf, quant_sup]}).reset_index()
 p1 = [p for p in params if len(df1[p].unique()) > 1]

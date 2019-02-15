@@ -210,19 +210,26 @@ class Dqn(object):
 
             t[indices], r[indices] = self.wrapper.get_r(s[indices], g[indices])
             gamma[indices] *= self.gamma
-            qvals = self.qvals([s[indices], g[indices]])[0]
-            probs = softmax(qvals, theta=self.theta, axis=1)
-            ro = probs[np.expand_dims(np.arange(len(indices[0])), axis=1), a[indices]] / mu[indices]
-            offpolicyness[indices] *= ro
-
             G[indices] += gamma[indices] * r[indices]
+
+            qvals = self.qvals([s[indices], g[indices]])[0]
+            if self.args['--target'] == 'greedy':
+                greedy_act = np.argmax(qvals, axis=1)
+                pi = (a[indices] == np.expand_dims(greedy_act,axis=1))
+            else:
+                probs = softmax(qvals, theta=self.theta, axis=1)
+                pi = probs[np.expand_dims(np.arange(len(indices[0])), axis=1), a[indices]]
+            ro = pi / mu[indices]
+            offpolicyness[indices] *= ro
             if int(self.args['--IS']) != 0:
                 G[indices] *= offpolicyness[indices].squeeze()
 
         qvals = self.qvals([s, g])[0]
         probs = softmax(qvals, theta=self.theta, axis=1)
-        # actions = [np.random.choice(range(qvals.shape[1]), p=probs[i]) for i in range(self.batch_size)]
-        actions = np.argmax(qvals, axis=1)
+        if self.args['--target'] == 'greedy':
+            actions = np.argmax(qvals, axis=1)
+        else:
+            actions = [np.random.choice(range(qvals.shape[1]), p=probs[i]) for i in range(self.batch_size)]
         an = np.expand_dims(np.array(actions), axis=1)
         bootstrap = self.targetqval([s, g, an])[0]
         corrected_bootstrap = (1 - t) * self.gamma * gamma * bootstrap.squeeze()
