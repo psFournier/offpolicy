@@ -30,12 +30,11 @@ class Dqn(object):
         self.initModels()
         self.initTargetModels()
 
-        self.names = ['s0', 'a0',  's1', 'goal', 'origin', 'term', 'next', 'reached', 'p0']
         self.alpha = float(args['--alpha'])
         if self.alpha == 0:
-            self.buffer = ReplayBuffer(limit=int(5e4), names=self.names)
+            self.buffer = ReplayBuffer(limit=int(5e4))
         else:
-            self.buffer = PrioritizedReplayBuffer(limit=int(5e4), names=self.names, alpha=self.alpha)
+            self.buffer = PrioritizedReplayBuffer(limit=int(5e4), alpha=self.alpha)
         self.batch_size = 64
         self.train_step = 1
 
@@ -161,7 +160,29 @@ class Dqn(object):
     #     a_G = np.expand_dims(a_G, axis=1)
     #     return a_g, a_G
 
-    def get_targets(self, samples):
+    def get_targets_correl(self, exps):
+        targets = []
+        for exp in exps:
+            possible_g = list(exp['reached']) + [exp['goal']]
+            g = possible_g[np.random.choice(len(possible_g))]
+            i = 1
+            t, r = self.wrapper.get_r(exp['s1'], g)
+            l_s = [(exp['s1'], r, t)]
+            while i <= self.nstep - 1 and exp['next'] != None:
+                exp = exp['next']
+                t, r = self.wrapper.get_r(exp['s1'], g)
+                l_s.append((exp['s1'], r, t))
+                i += 1
+            qvals = self.qvals([exp['s1'], g])[0]
+            actions = np.argmax(qvals, axis=1)
+            an = np.expand_dims(np.array(actions), axis=1)
+            bootstrap = self.targetqval([exp['s1'], g, an])[0]
+            targets.append(l_s[-1][1] + (1 - l_s[-1][2]) * self.gamma * bootstrap)
+            for tup in reversed(l_s[:-1]):
+                targets.append(tup[1] + (1 - tup[2]) * self.gamma * targets[-1])
+
+
+    def get_targets_uncorrel(self, samples):
 
         g = []
         for i, goal in enumerate(samples['goal']):
@@ -189,9 +210,9 @@ class Dqn(object):
 
             t[indices], r[indices] = self.wrapper.get_r(s[indices], g[indices])
             gamma[indices] *= self.gamma
+
             qvals = self.qvals([s[indices], g[indices]])[0]
             probs = softmax(qvals, theta=self.theta, axis=1)
-
             ro[indices] *= (probs[np.expand_dims(np.arange(len(indices[0])), axis=1), a[indices]] / mu[indices])
 
             G[indices] += gamma[indices] * r[indices]
@@ -254,8 +275,12 @@ class Dqn(object):
     def train_dqn(self):
         train_stats = {}
         beta = min(0.4 + (1 - 0.4) * self.train_step / 5e5, 1)
-        samples = self.buffer.sample(self.batch_size, beta=beta)
-        targets, goal, ro = self.get_targets(samples)
+        exps = self.buffer.sample(self.batch_size, beta=beta)
+        names = ['s0', 'a0', 's1', 'goal', 'origin', 'term', 'next', 'reached', 'p0', 'weights']
+        if self.alpha != 0:
+            names.append('indices')
+        samples = {name: np.array([exp[name] for exp in exps]) for name in names}
+        targets, goal, ro = self.get_targets_uncorrel(samples)
         train_stats['target_mean'] = np.mean(targets)
         train_stats['ro'] = np.mean(ro)
         train_stats['goals'] = goal.squeeze()

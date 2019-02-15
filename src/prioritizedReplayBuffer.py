@@ -2,11 +2,10 @@ import numpy as np
 from utils.segment_tree import SumSegmentTree, MinSegmentTree
 
 class ReplayBuffer(object):
-    def __init__(self, limit, names):
+    def __init__(self, limit):
         self._storage = []
         self._next_idx = 0
         self._limit = limit
-        self._names = names
 
     def __len__(self):
         return len(self._storage)
@@ -24,12 +23,11 @@ class ReplayBuffer(object):
         exps = []
         for i in idxs:
             exps.append(self._storage[i])
-        res = {name: np.array([exp[name] for exp in exps]) for name in self._names}
-        res['weights'] = np.ones(shape=(batchsize,1))
-        return res
+            exps[-1]['weights'] = np.expand_dims(1, axis=1)
+        return exps
 
 class PrioritizedReplayBuffer(ReplayBuffer):
-    def __init__(self, limit, names, alpha=0):
+    def __init__(self, limit, alpha=0):
         """Create Prioritized Replay buffer.
 
         Parameters
@@ -45,7 +43,7 @@ class PrioritizedReplayBuffer(ReplayBuffer):
         --------
         ReplayBuffer.__init__
         """
-        super(PrioritizedReplayBuffer, self).__init__(limit=limit, names=names)
+        super(PrioritizedReplayBuffer, self).__init__(limit=limit)
         self.alpha = alpha
 
         self.epsilon = 1e-6
@@ -96,11 +94,12 @@ class PrioritizedReplayBuffer(ReplayBuffer):
             weight = (p_sample * len(self._storage)) ** (-beta)
             weights.append(np.expand_dims(weight / max_weight, axis=1))
 
-        res = super(PrioritizedReplayBuffer, self).sample(batch_size, idxes)
-        res['indices'] = np.array(idxes)
-        res['weights'] = np.array(weights)
+        exps = super(PrioritizedReplayBuffer, self).sample(batch_size, idxes)
+        for exp, idx, weight in zip(exps, idxes, weights):
+            exp['indices'] = np.expand_dims(idx, axis=1)
+            exp['weights'] = np.expand_dims(weight, axis=1)
 
-        return res
+        return exps
 
 
     def update_priorities(self, idxes, priorities):
