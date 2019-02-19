@@ -22,8 +22,9 @@ class Dqn2(object):
         self.gamma = 0.99
         self.margin = float(args['--margin'])
         self.layers = [int(l) for l in args['--layers'].split(',')]
-        self.her = int(args['--her'])
+        self.her = float(args['--her'])
         self.nstep = int(args['--nstep'])
+        self.importanceSampling = bool(int(args['--IS']))
         self.args = args
 
         self.num_actions = wrapper.action_dim
@@ -111,7 +112,7 @@ class Dqn2(object):
                 exp['next'] = None
             else:
                 exp['next'] = trajectory[-i]
-            if np.random.rand() < 0.02:
+            if np.random.rand() < self.her:
                 goals = np.vstack([goals, exp['s1']])
             exp['goal'] = goals
             exp['terminal'], exp['reward'] = self.wrapper.get_r(exp['s1'], goals)
@@ -187,13 +188,17 @@ class Dqn2(object):
         goals = []
         origins = []
         ros = []
+        returns = []
         for i in range(len(nStepExpes)):
             returnVal = bootstraps[i]
             nStepExpe = nStepExpes[i]
             ro = 1
             for j in reversed(range(len(nStepExpe))):
                 (s0, a0, g, r, t, mu, o, pi) = nStepExpe[j]
-                returnVal = r + self.gamma * (1 - t) * ro * returnVal
+                returnVal = r + self.gamma * (1 - t) * returnVal
+                if self.importanceSampling:
+                    returnVal *= ro
+
                 targets.append(returnVal)
                 states.append(s0)
                 actions.append(a0)

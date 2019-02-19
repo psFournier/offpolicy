@@ -64,14 +64,17 @@ class Rooms9(Env):
         self.nR = self.desc.shape[0]-1
         self.nC = (self.desc.shape[1]-1)/2
         self.tutoronly = [int(f) for f in args['--tutoronly'].split(',')]
+        self.multigoal = bool(int(args['--multigoal']))
         self.initialize()
 
 
     def initialize(self):
-        self.x = np.random.randint(self.nR)
-        self.y = np.random.randint(self.nC)
-        # self.x = 7
-        # self.y = 7
+        if self.multigoal:
+            self.x = np.random.randint(self.nR)
+            self.y = np.random.randint(self.nC)
+        else:
+            self.x = 0
+            self.y = 0
         self.objects = []
 
         for i, o in enumerate(self.objects):

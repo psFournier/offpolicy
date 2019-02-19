@@ -44,8 +44,8 @@ Options:
   --nstep VAL              [default: 1]
   --alpha VAL              [default: 0]
   --IS VAL                 [default: 0]
-  --target VAL             [default: soft]
   --exp VAL                [default: egreedy]
+  --multigoal VAL          [default: 1]
 """
 
 if __name__ == '__main__':
