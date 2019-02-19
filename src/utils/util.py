@@ -122,3 +122,33 @@ def softmax(X, theta=1.0, axis=None):
     if len(X.shape) == 1: p = p.flatten()
 
     return p
+
+def egreedy(X, eps=0.1):
+    """
+    Compute the softmax of each element along an axis of X.
+
+    Parameters
+    ----------
+    X: ND-Array. Probably should be floats.
+    theta (optional): float parameter, used as a multiplier
+        prior to exponentiation. Default = 1.0
+    axis (optional): axis to compute values along. Default is the
+        first non-singleton axis.
+
+    Returns an array the same size as X. The result will sum to 1
+    along the specified axis.
+    """
+
+    # make X at least 2d
+    y = np.atleast_2d(X)
+
+    r,n = y.shape
+    p = (float(eps) / n) * np.ones_like(y)
+
+    p[np.arange(r), np.argmax(y, axis=1)] = 1 - ((n-1)/n) * float(eps)
+
+    # flatten if X was 1D
+    if len(X.shape) == 1:
+        p = p.flatten()
+
+    return p

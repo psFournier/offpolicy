@@ -10,7 +10,7 @@ from prioritizedReplayBuffer import ReplayBuffer, PrioritizedReplayBuffer
 
 from keras.losses import mse
 import tensorflow as tf
-from utils.util import softmax
+from utils.util import softmax, egreedy
 import time
 
 class Dqn2(object):
@@ -36,7 +36,7 @@ class Dqn2(object):
         else:
             self.buffer = PrioritizedReplayBuffer(limit=int(5e4), alpha=self.alpha)
         self.batch_size = int(64 / self.nstep)
-        self.train_step = 1
+        self.train_step = 0
 
     def initModels(self):
 
@@ -78,12 +78,13 @@ class Dqn2(object):
         S = Input(shape=self.wrapper.state_dim)
         G = Input(shape=self.wrapper.goal_dim)
         A = Input(shape=(1,), dtype='uint8')
-        Tqvals = self.create_critic_network(S, G)
-        self.targetmodel = Model([S, G], Tqvals)
+        targetQvals = self.create_critic_network(S, G)
+        self.targetmodel = Model([S, G], targetQvals)
+        self.targetqvals = K.function(inputs=[S, G], outputs=[targetQvals], updates=None)
 
         actionFilter = K.squeeze(K.one_hot(A, self.num_actions), axis=1)
-        Tqval = K.sum(actionFilter * Tqvals, axis=1, keepdims=True)
-        self.targetqval = K.function(inputs=[S, G, A], outputs=[Tqval], updates=None)
+        targetQval = K.sum(actionFilter * targetQvals, axis=1, keepdims=True)
+        self.targetqval = K.function(inputs=[S, G, A], outputs=[targetQval], updates=None)
 
         self.target_train()
 
@@ -158,13 +159,21 @@ class Dqn2(object):
 
         endStates = np.array([end[0] for end in nStepEnds])
         endGoals = np.array([end[1] for end in nStepEnds])
+        input = [np.vstack([states, endStates]), np.vstack([goals, endGoals])]
+        qValues = self.qvals(input)[0]
+        targetQvalues = self.targetqvals(input)[0]
 
-        qValues = self.qvals([np.vstack([states, endStates]), np.vstack([goals, endGoals])])[0]
+        if self.args['--exp'] == 'softmax':
+            actionProbs = softmax(qValues, axis=1, theta=self.theta)
+        elif self.args['--exp'] == 'egreedy':
+            actionProbs = egreedy(qValues, eps=self.eps)
+        else:
+            raise RuntimeError
 
-        bootstrapActions = np.expand_dims(np.argmax(qValues[-self.batch_size:, :], axis=1), axis=1)
-        bootstraps = self.targetqval([endStates, endGoals, bootstrapActions])[0]
+        bootstraps = np.multiply(targetQvalues[-self.batch_size:, :],
+                                 actionProbs[-self.batch_size:, :])
+        bootstraps = np.sum(bootstraps, axis=1, keepdims=True)
 
-        actionProbs = softmax(qValues, axis=1, theta=1)
         for i, expe in enumerate(flatExpes):
             expe += (actionProbs[i, expe[1]],)
 
@@ -216,8 +225,14 @@ class Dqn2(object):
 
     @property
     def theta(self):
-        # if self.train_step < 5e4:
-        #     theta = 1
-        # else:
-        #     theta = 1 + 9 * (self.train_step - 5e4) / (int(self.args['--max_steps']) - 5e4)
         return 1
+
+    @property
+    def eps(self):
+        if self.train_step < 1e4:
+            eps = 1 + ((0.1 - 1) / 1e4) * self.train_step
+        elif self.train_step < 6e4:
+            eps = 0.1 + ((0.01 - 0.1) / 5e4) * (self.train_step - 1e4)
+        else:
+            eps = 0.01
+        return eps

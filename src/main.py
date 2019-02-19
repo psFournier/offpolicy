@@ -3,7 +3,7 @@ import numpy as np
 from utils.util import build_logger
 from env_wrappers.registration import make
 from docopt import docopt
-from utils.util import softmax
+from utils.util import softmax, egreedy
 from dqn import Dqn
 from TB import TB
 from dqn2 import Dqn2
@@ -45,6 +45,7 @@ Options:
   --alpha VAL              [default: 0]
   --IS VAL                 [default: 0]
   --target VAL             [default: soft]
+  --exp VAL                [default: egreedy]
 """
 
 if __name__ == '__main__':
@@ -119,7 +120,12 @@ if __name__ == '__main__':
 
         input = [np.expand_dims(i, axis=0) for i in [state, goal]]
         qvals = agent.qvals(input)[0].squeeze()
-        probs = softmax(qvals, theta=agent.theta)
+        if args['--exp'] == 'softmax':
+            probs = softmax(qvals, theta=agent.theta)
+        elif args['--exp'] == 'egreedy':
+            probs = egreedy(qvals, eps=agent.eps)
+        else:
+            raise RuntimeError
         action = np.random.choice(range(qvals.shape[0]), p=probs)
         a = np.expand_dims(action, axis=1)
         state = env.step(a)[0]
@@ -129,7 +135,7 @@ if __name__ == '__main__':
         exp['mu0'] = probs[action]
 
         trajectory.append(exp.copy())
-        if env_step > 1000:
+        if env_step > 10000:
             train_stats = agent.train_dqn()
             stats['target_mean'] += train_stats['target_mean']
             stats['train_step'] += 1
