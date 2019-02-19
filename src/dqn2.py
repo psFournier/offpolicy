@@ -188,7 +188,7 @@ class Dqn2(object):
         goals = []
         origins = []
         ros = []
-        returns = []
+
         for i in range(len(nStepExpes)):
             returnVal = bootstraps[i]
             nStepExpe = nStepExpes[i]
@@ -198,7 +198,6 @@ class Dqn2(object):
                 returnVal = r + self.gamma * (1 - t) * returnVal
                 if self.importanceSampling:
                     returnVal *= ro
-
                 targets.append(returnVal)
                 states.append(s0)
                 actions.append(a0)
@@ -213,9 +212,9 @@ class Dqn2(object):
     def train_dqn(self):
         train_stats = {}
         exps = self.buffer.sample(self.batch_size)
-        names = ['s0', 'a0', 's1', 'goal', 'origin', 'term', 'next', 'reached', 'p0', 'weights']
-        if self.alpha != 0:
-            names.append('indices')
+        # names = ['s0', 'a0', 's1', 'goal', 'origin', 'term', 'next', 'reached', 'p0', 'weights']
+        # if self.alpha != 0:
+        #     names.append('indices')
         nStepExpes, nStepEnds = self.getNStepSequences(exps)
         nStepExpes, bootstraps = self.getQvaluesAndBootstraps(nStepExpes, nStepEnds)
         states, actions, goals, targets, origins, ros = self.get_targets(nStepExpes, bootstraps)
