@@ -6,6 +6,7 @@ from docopt import docopt
 from utils.util import softmax
 from dqn import Dqn
 from TB import TB
+from dqn2 import Dqn2
 import time
 import os
 from keras.models import load_model
@@ -37,13 +38,13 @@ Options:
   --rndv VAL               [default: 0]
   --demo VAL               [default: -1]
   --tutoronly VAL          [default: -1]
-  --initq VAL              [default: -100]
-  --layers VAL             [default: 400,300]
-  --her VAL              [default: 0.01]
+  --initq VAL              [default: 0]
+  --layers VAL             [default: 64,64]
+  --her VAL                [default: 0]
   --nstep VAL              [default: 1]
   --alpha VAL              [default: 0]
   --IS VAL                 [default: 0]
-  --target VAL             [default: 0]
+  --target VAL             [default: soft]
 """
 
 if __name__ == '__main__':
@@ -71,6 +72,8 @@ if __name__ == '__main__':
         agent = Dqn(args, wrapper)
     elif int(args['--agent']) == 1:
         agent = TB(args, wrapper)
+    elif int(args['--agent']) == 2:
+        agent = Dqn2(args, wrapper)
 
     stats = {'target_mean': 0,
              'train_step': 0,
@@ -122,11 +125,11 @@ if __name__ == '__main__':
         state = env.step(a)[0]
         term, r = wrapper.get_r(state, goal)
 
-        exp['a0'], exp['term'], exp['s1'], exp['origin'] = a, term, state.copy(), np.expand_dims(0, axis=1)
-        exp['p0'] = probs[action]
+        exp['a0'], exp['terminal'], exp['s1'], exp['origin'] = a, term, state.copy(), np.expand_dims(0, axis=1)
+        exp['mu0'] = probs[action]
 
         trajectory.append(exp.copy())
-        if env_step > 10000:
+        if env_step > 1000:
             train_stats = agent.train_dqn()
             stats['target_mean'] += train_stats['target_mean']
             stats['train_step'] += 1

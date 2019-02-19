@@ -158,31 +158,9 @@ class Dqn(object):
     #     bootstrap = self.targetqval([a_s1, a_g, action])[0]
     #     a_G = np.array(G) + (1 - np.array(t)) * np.array(gamma) * bootstrap.squeeze()
     #     a_G = np.expand_dims(a_G, axis=1)
-    #     return a_g, a_G
+    #     return a_g, a_
 
-    def get_targets_correl(self, exps):
-        targets = []
-        for exp in exps:
-            possible_g = list(exp['reached']) + [exp['goal']]
-            g = possible_g[np.random.choice(len(possible_g))]
-            i = 1
-            t, r = self.wrapper.get_r(exp['s1'], g)
-            l_s = [(exp['s1'], r, t)]
-            while i <= self.nstep - 1 and exp['next'] != None:
-                exp = exp['next']
-                t, r = self.wrapper.get_r(exp['s1'], g)
-                l_s.append((exp['s1'], r, t))
-                i += 1
-            qvals = self.qvals([exp['s1'], g])[0]
-            actions = np.argmax(qvals, axis=1)
-            an = np.expand_dims(np.array(actions), axis=1)
-            bootstrap = self.targetqval([exp['s1'], g, an])[0]
-            targets.append(l_s[-1][1] + (1 - l_s[-1][2]) * self.gamma * bootstrap)
-            for tup in reversed(l_s[:-1]):
-                targets.append(tup[1] + (1 - tup[2]) * self.gamma * targets[-1])
-
-
-    def get_targets_uncorrel(self, samples):
+    def get_targets(self, samples):
 
         g = []
         for i, goal in enumerate(samples['goal']):
@@ -292,7 +270,7 @@ class Dqn(object):
         if self.alpha != 0:
             names.append('indices')
         samples = {name: np.array([exp[name] for exp in exps]) for name in names}
-        targets, goal, ro = self.get_targets_uncorrel(samples)
+        targets, goal, ro = self.get_targets(samples)
         train_stats['target_mean'] = np.mean(targets)
         train_stats['ro'] = np.mean(ro)
         train_stats['goals'] = goal.squeeze()
