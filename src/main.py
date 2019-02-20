@@ -43,8 +43,8 @@ Options:
   --her VAL                [default: 0]
   --nstep VAL              [default: 1]
   --alpha VAL              [default: 0]
-  --IS VAL                 [default: 0]
-  --exp VAL                [default: egreedy]
+  --IS VAL                 [default: no]
+  --exp VAL                [default: softmax]
   --multigoal VAL          [default: 1]
 """
 
@@ -69,12 +69,10 @@ if __name__ == '__main__':
         env.seed(seed)
         env_test.seed(seed)
 
-    if int(args['--agent']) == 0:
-        agent = Dqn(args, wrapper)
-    elif int(args['--agent']) == 1:
-        agent = TB(args, wrapper)
-    elif int(args['--agent']) == 2:
+    if args['--agent'] == 'dqn':
         agent = Dqn2(args, wrapper)
+    elif args['--agent'] == 'tb':
+        agent = TB(args, wrapper)
 
     stats = {'target_mean': 0,
              'train_step': 0,

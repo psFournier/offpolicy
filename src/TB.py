@@ -187,22 +187,22 @@ class TB(object):
         goals = []
         origins = []
         ros = []
-
+        ro = 1
         for i in range(len(nStepExpes)):
             returnVal = bootstraps[i]
             nStepExpe = nStepExpes[i]
-            ro = 1
             for j in reversed(range(len(nStepExpe))):
                 (s0, a0, g, r, t, mu, o, pis, q) = nStepExpe[j]
-                q[a0] = r + self.gamma * (1 - t) * returnVal
-                returnVal = np.sum(np.multiply(pis, q), keepdims=True)
+                returnVal = r + self.gamma * (1 - t) * returnVal
                 targets.append(returnVal)
                 states.append(s0)
                 actions.append(a0)
                 goals.append(g)
                 origins.append(o)
+                q[a0] = returnVal
+                returnVal = np.sum(np.multiply(pis, q), keepdims=True)
+                ro *= pis[a0] / mu
                 ros.append(ro)
-                ro = pis[a0] / mu
 
         res = [np.array(x) for x in [states, actions, goals, targets, origins, ros]]
         return res

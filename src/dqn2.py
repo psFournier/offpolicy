@@ -24,7 +24,6 @@ class Dqn2(object):
         self.layers = [int(l) for l in args['--layers'].split(',')]
         self.her = float(args['--her'])
         self.nstep = int(args['--nstep'])
-        self.importanceSampling = bool(int(args['--IS']))
         self.args = args
 
         self.num_actions = wrapper.action_dim
@@ -188,23 +187,25 @@ class Dqn2(object):
         goals = []
         origins = []
         ros = []
-
+        ro=1
         for i in range(len(nStepExpes)):
             returnVal = bootstraps[i]
             nStepExpe = nStepExpes[i]
-            ro = 1
             for j in reversed(range(len(nStepExpe))):
                 (s0, a0, g, r, t, mu, o, pi) = nStepExpe[j]
                 returnVal = r + self.gamma * (1 - t) * returnVal
-                if self.importanceSampling:
-                    returnVal *= ro
                 targets.append(returnVal)
                 states.append(s0)
                 actions.append(a0)
                 goals.append(g)
                 origins.append(o)
+                perDecisionRo = pi / mu
+                if self.args['--IS'] == 'standard':
+                    returnVal *= perDecisionRo
+                elif self.args['--IS'] == 'retrace':
+                    returnVal *= min(1, perDecisionRo)
+                ro *= perDecisionRo
                 ros.append(ro)
-                ro = pi / mu
 
         res = [np.array(x) for x in [states, actions, goals, targets, origins, ros]]
         return res
