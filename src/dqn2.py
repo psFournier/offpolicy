@@ -19,7 +19,8 @@ class Dqn2(object):
 
         self.tau = 0.001
         self.a_dim = (1,)
-        self.gamma = 0.99
+        self._gamma = 0.99
+        self._lambda = float(args['--lambda'])
         self.margin = float(args['--margin'])
         self.layers = [int(l) for l in args['--layers'].split(',')]
         self.her = float(args['--her'])
@@ -170,14 +171,62 @@ class Dqn2(object):
         else:
             raise RuntimeError
 
-        bootstraps = np.multiply(targetQvalues[-self.batch_size:, :],
-                                 actionProbs[-self.batch_size:, :])
-        bootstraps = np.sum(bootstraps, axis=1, keepdims=True)
+        # bootstraps = np.multiply(targetQvalues[-self.batch_size:, :],
+        #                          actionProbs[-self.batch_size:, :])
+        # bootstraps = np.sum(bootstraps, axis=1, keepdims=True)
 
         for i, expe in enumerate(flatExpes):
-            expe += (actionProbs[i, expe[1]],)
+            expe += [actionProbs[i, :], targetQvalues[i, :]]
 
-        return nStepExpes, bootstraps
+        for i in range(len(nStepExpes)):
+            nStepExpes[i].append([actionProbs[-self.batch_size + i, :], targetQvalues[-self.batch_size + i, :]])
+
+        return nStepExpes
+
+    def getTargetsSumTD(self, nStepExpes):
+        targets = []
+        states = []
+        actions = []
+        goals = []
+        origins = []
+        ros = []
+        for nStepExpe in nStepExpes:
+            tdErrors = []
+            cs = []
+            qs = []
+
+            for expe1, expe2 in zip(nStepExpe[:-1], nStepExpe[1:]):
+
+                s0, a0, g, r, t, mu, o, pis, qt = expe1
+                states.append(s0)
+                actions.append(a0)
+                goals.append(g)
+                origins.append(o)
+                q = qt[a0]
+                qs.append(q)
+                pisNext, qtNext = expe2[-2:]
+
+                ### Calcul des one-step td errors variable selon la méthode
+                b = np.sum(np.multiply(qtNext, pisNext), keepdims=True)
+                b = r + (1 - t) * self._gamma * b
+                if int(self.args['--targetClip']):
+                    b = np.clip(b, self.wrapper.rNotTerm / (1 - self._gamma), self.wrapper.rTerm)
+
+                tdErrors.append((b - q).squeeze())
+
+                ### Calcul des ratios variable selon la méthode
+                ro = pis[a0] / mu
+                cs.append(ro * self._gamma * self._lambda)
+
+            deltas = []
+            for i in range(len(tdErrors) - 1):
+                deltas.append(np.sum(np.multiply(tdErrors[i+1:], np.cumprod(cs[i+1:]))))
+            deltas.append(0)
+            targets += [q + delta + tdError for q, delta, tdError in zip(qs, deltas, tdErrors)]
+            ros += cs
+
+        res = [np.array(x) for x in [states, actions, goals, targets, origins, ros]]
+        return res
 
     def get_targets(self, nStepExpes, bootstraps):
 
@@ -192,14 +241,18 @@ class Dqn2(object):
             returnVal = bootstraps[i]
             nStepExpe = nStepExpes[i]
             for j in reversed(range(len(nStepExpe))):
-                (s0, a0, g, r, t, mu, o, pi) = nStepExpe[j]
-                returnVal = r + self.gamma * (1 - t) * returnVal
+                (s0, a0, g, r, t, mu, o, pis, q) = nStepExpe[j]
+                returnVal = r + self._gamma * (1 - t) * returnVal
+                if int(self.args['--targetClip']):
+                    returnVal = np.clip(returnVal,
+                                        self.wrapper.rNotTerm / (1 - self.wrapper._gamma),
+                                        self.wrapper.rTerm)
                 targets.append(returnVal)
                 states.append(s0)
                 actions.append(a0)
                 goals.append(g)
                 origins.append(o)
-                perDecisionRo = pi / mu
+                perDecisionRo = pis[a0] / mu
                 if self.args['--IS'] == 'standard':
                     returnVal *= perDecisionRo
                 elif self.args['--IS'] == 'retrace':
@@ -217,8 +270,8 @@ class Dqn2(object):
         # if self.alpha != 0:
         #     names.append('indices')
         nStepExpes, nStepEnds = self.getNStepSequences(exps)
-        nStepExpes, bootstraps = self.getQvaluesAndBootstraps(nStepExpes, nStepEnds)
-        states, actions, goals, targets, origins, ros = self.get_targets(nStepExpes, bootstraps)
+        nStepExpes = self.getQvaluesAndBootstraps(nStepExpes, nStepEnds)
+        states, actions, goals, targets, origins, ros = self.getTargetsSumTD(nStepExpes)
         train_stats['target_mean'] = np.mean(targets)
         train_stats['ro'] = np.mean(ros)
         inputs = [states, actions, goals, targets, origins, np.ones_like(targets)]
@@ -234,10 +287,8 @@ class Dqn2(object):
 
     @property
     def eps(self):
-        if self.train_step < 1e4:
-            eps = 1 + ((0.1 - 1) / 1e4) * self.train_step
-        elif self.train_step < 6e4:
-            eps = 0.1 + ((0.01 - 0.1) / 5e4) * (self.train_step - 1e4)
+        if self.train_step < 1e5:
+            eps = 1 + ((0.1 - 1) / 1e5) * self.train_step
         else:
-            eps = 0.01
+            eps = 0.1
         return eps

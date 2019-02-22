@@ -46,6 +46,8 @@ Options:
   --IS VAL                 [default: no]
   --exp VAL                [default: softmax]
   --multigoal VAL          [default: 1]
+  --targetClip VAL         [default: 1]
+  --lambda VAL             [default: 0]
 """
 
 if __name__ == '__main__':
@@ -122,6 +124,7 @@ if __name__ == '__main__':
             probs = softmax(qvals, theta=agent.theta)
         elif args['--exp'] == 'egreedy':
             probs = egreedy(qvals, eps=agent.eps)
+            if env_step % 1000 == 0: print(probs)
         else:
             raise RuntimeError
         action = np.random.choice(range(qvals.shape[0]), p=probs)

@@ -194,6 +194,10 @@ class TB(object):
             for j in reversed(range(len(nStepExpe))):
                 (s0, a0, g, r, t, mu, o, pis, q) = nStepExpe[j]
                 returnVal = r + self.gamma * (1 - t) * returnVal
+                if int(self.args['--targetClip']):
+                    returnVal = np.clip(returnVal,
+                                        self.wrapper.rNotTerm / (1 - self.wrapper.gamma),
+                                        self.wrapper.rTerm)
                 targets.append(returnVal)
                 states.append(s0)
                 actions.append(a0)
@@ -231,10 +235,8 @@ class TB(object):
 
     @property
     def eps(self):
-        if self.train_step < 1e4:
-            eps = 1 + ((0.1 - 1) / 1e4) * self.train_step
-        elif self.train_step < 6e4:
-            eps = 0.1 + ((0.01 - 0.1) / 5e4) * (self.train_step - 1e4)
+        if self.train_step < 1e5:
+            eps = 1 + ((0.1 - 1) / 1e5) * self.train_step
         else:
-            eps = 0.01
+            eps = 0.1
         return eps
