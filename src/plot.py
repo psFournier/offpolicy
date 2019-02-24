@@ -18,7 +18,7 @@ def quant_inf(x):
 def quant_sup(x):
     return x.quantile(0.75)
 
-dirs = ['2102Eps']
+dirs = ['2302']
 df = pd.concat([pd.read_pickle('../log/cluster/{}/*-v0.pkl'.format(d)) for d in dirs], ignore_index=True)
 
 x = ['step']
@@ -48,7 +48,8 @@ params = ['--agent',
           '--alpha',
           '--IS',
           '--exp',
-          '--multigoal'
+          '--multigoal',
+          '--lambda'
           ]
 
 a, b = 1,1
@@ -66,7 +67,7 @@ df1 = df1[(df1['--initq'] == 0)]
 
 
 
-y = 'term'
+y = 'ro'
 for p in params: print(p, df1[p].unique())
 df1 = df1.groupby(x + params).agg({y:[np.median, np.mean, np.std, quant_inf, quant_sup]}).reset_index()
 p1 = [p for p in params if len(df1[p].unique()) > 1]

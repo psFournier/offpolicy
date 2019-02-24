@@ -215,8 +215,18 @@ class Dqn2(object):
                 tdErrors.append((b - q).squeeze())
 
                 ### Calcul des ratios variable selon la méthode
-                ro = pis[a0] / mu
-                cs.append(ro * self._gamma * self._lambda)
+                if self.args['--IS'] == 'no':
+                    cs.append(self._gamma * self._lambda)
+                elif self.args['--IS'] == 'standard':
+                    ro = pis[a0] / mu
+                    cs.append(ro * self._gamma * self._lambda)
+                elif self.args['--IS'] == 'retrace':
+                    ro = pis[a0] / mu
+                    cs.append(min(1, ro) * self._gamma * self._lambda)
+                elif self.args['--IS'] == 'tb':
+                    cs.append(pis[a0] * self._gamma * self._lambda)
+                else:
+                    raise RuntimeError
 
             deltas = []
             for i in range(len(tdErrors) - 1):
