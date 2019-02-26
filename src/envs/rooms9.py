@@ -42,7 +42,7 @@ class Obj():
 class Rooms9(Env):
     metadata = {'render.modes': ['human', 'ansi']}
 
-    def __init__(self, args):
+    def __init__(self, multistart=False):
         self.desc = np.asarray([
             " _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
             "|         |         |         |",
@@ -63,13 +63,12 @@ class Rooms9(Env):
         ], dtype='c')
         self.nR = self.desc.shape[0]-1
         self.nC = (self.desc.shape[1]-1)/2
-        self.tutoronly = [int(f) for f in args['--tutoronly'].split(',')]
-        self.multigoal = bool(int(args['--multigoal']))
+        self.multistart = multistart
         self.initialize()
 
 
     def initialize(self):
-        if self.multigoal:
+        if self.multistart:
             self.x = np.random.randint(self.nR)
             self.y = np.random.randint(self.nC)
         else:
@@ -77,8 +76,8 @@ class Rooms9(Env):
             self.y = 0
         self.objects = []
 
-        for i, o in enumerate(self.objects):
-            o.tutor_only = (i+2 in self.tutoronly)
+        # for i, o in enumerate(self.objects):
+        #     o.tutor_only = (i+2 in self.tutoronly)
 
         self.initstate = self.state.copy()
         self.lastaction = None
@@ -186,7 +185,6 @@ class Rooms9(Env):
         else: outfile.write("\n")
 
 if __name__ == '__main__':
-    env = Rooms1(args={'--tutoronly': '-1'})
     s = env.reset()
     while True:
         print(env.x, env.y)

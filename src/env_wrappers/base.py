@@ -2,7 +2,7 @@ import numpy as np
 from gym import Wrapper, spaces
 
 class Base(Wrapper):
-    def __init__(self, env, args):
+    def __init__(self, env, args=None):
         super(Base, self).__init__(env)
         assert int(args['--targetClip']) == 0
         self.gamma = float(args['--gamma'])
