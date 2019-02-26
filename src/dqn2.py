@@ -107,7 +107,8 @@ class Dqn2(object):
                    output_shape=(self.num_actions,))(ValAndAdv)
         return Q_values
 
-    def act(self, input):
+    def act(self, exp):
+        input = self.wrapper.make_input(exp)
         qvals = self.qvals(input)[0].squeeze()
         if self.args['--exp'] == 'softmax':
             probs = softmax(qvals, theta=self.theta)
@@ -129,7 +130,7 @@ class Dqn2(object):
                 goals = np.vstack([goals, exp['s1']])
             exp['goal'] = goals
             if goals.size != 0:
-                exp['terminal'], exp['reward'] = self.wrapper.get_r(exp['s1'], goals)
+                exp = self.wrapper.get_r(exp)
             else:
                 exp['terminal'] = np.expand_dims(exp['terminal'], axis=0)
                 exp['reward'] = np.expand_dims(exp['reward'], axis=0)

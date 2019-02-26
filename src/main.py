@@ -88,7 +88,7 @@ if __name__ == '__main__':
     episode_step = 0
     trajectory = []
     state = env.reset()
-    goal = wrapper.get_g()
+    exp = wrapper.reset(state)
     t0 = time.time()
     while env_step < int(args['--max_steps']):
         # if env_step % int(args['--freq_demo']) == 0:
@@ -110,14 +110,12 @@ if __name__ == '__main__':
         #             exp['a0'], exp['s1'], exp['origin'] = a, s.copy(), np.expand_dims(1, axis=1)
         #             demo.append(exp.copy())
         #         agent.process_trajectory(demo)
-        exp = {'s0': state.copy(), 'goal': goal.copy(), 'origin': np.expand_dims(0, axis=1)}
-        input = [np.expand_dims(i, axis=0) for i in [state, goal]]
-        a, probs = agent.act(input)
-        exp['a0'], exp['mu0'] = a, probs[a]
+
+        a, probs = agent.act(exp)
+        exp['a0'], exp['mu0'], exp['origin'] = a, probs[a], np.expand_dims(0, axis=1)
         state, r, term, info = env.step(a.squeeze())
         exp['s1'] = state.copy()
-        term, r = wrapper.get_r(state, goal, r, term)
-        exp['reward'], exp['terminal'] = r, term
+        exp = wrapper.get_r(exp, r, term)
         env_step += 1
         episode_step += 1
         trajectory.append(exp.copy())
@@ -128,13 +126,13 @@ if __name__ == '__main__':
             stats['train_step'] += 1
             stats['ro'] += train_stats['ro']
 
-        if term or episode_step >= max_episode_steps:
+        if exp['terminal'] or episode_step >= max_episode_steps:
+            stats['term'] += exp['terminal']
             agent.process_trajectory(trajectory)
             trajectory.clear()
             state = env.reset()
-            goal = wrapper.get_g()
+            exp = wrapper.reset(state)
             episode_step = 0
-            stats['term'] += term
             nb_ep += 1
 
         if env_step % int(args['--eval_freq'])== 0:

@@ -10,12 +10,20 @@ class Base(Wrapper):
         self.rNotTerm = -1 + (self.gamma - 1) * float(args['--initq'])
         self.rTerm = 0 - float(args['--initq'])
 
-    def get_g(self):
-        return np.empty(0)
+    def reset(self, state):
+        exp = {}
+        exp['s0'] = state
+        exp['goal'] = np.empty(0)
+        return exp
 
-    def get_r(self, s, g, r=None, term=None):
-        assert r is not None
-        return term, r
+    def make_input(self, exp):
+        input = [np.expand_dims(i, axis=0) for i in [exp['s0'], exp['goal']]]
+        return input
+
+    def get_r(self, exp, r=None, term=None):
+        exp['terminal'] = term
+        exp['reward'] = r
+        return exp
 
     @property
     def state_dim(self):
