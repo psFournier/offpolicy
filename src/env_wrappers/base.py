@@ -4,6 +4,7 @@ from gym import Wrapper, spaces
 class Base(Wrapper):
     def __init__(self, env, args):
         super(Base, self).__init__(env)
+        assert int(args['--targetClip']) == 0
         self.gamma = float(args['--gamma'])
         self.multigoal = bool(int(args['--multigoal']))
         self.rNotTerm = -1 + (self.gamma - 1) * float(args['--initq'])
@@ -13,15 +14,8 @@ class Base(Wrapper):
         return np.empty(0)
 
     def get_r(self, s, g, r=None, term=None):
-        assert g.size != 0 or r is not None
-        if g.size != 0:
-            term = np.linalg.norm(s - g, axis=-1) < 0.001
-            r = term * self.rTerm + (1 - term) * self.rNotTerm
+        assert r is not None
         return term, r
-
-    def get_stats(self):
-        stats = {}
-        return stats
 
     @property
     def state_dim(self):

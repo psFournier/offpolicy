@@ -45,7 +45,7 @@ Options:
   --IS VAL                 [default: no]
   --exp VAL                [default: softmax]
   --multigoal VAL          [default: 1]
-  --targetClip VAL         [default: 1]
+  --targetClip VAL         [default: 0]
   --lambda VAL             [default: 0]
 """
 
@@ -122,7 +122,7 @@ if __name__ == '__main__':
         episode_step += 1
         trajectory.append(exp.copy())
 
-        if env_step > 1000:
+        if env_step > 10000:
             train_stats = agent.train_dqn()
             stats['target_mean'] += train_stats['target_mean']
             stats['train_step'] += 1
@@ -159,7 +159,6 @@ if __name__ == '__main__':
             # loggerJSON.logkv('goal_freq', stats['goal_freq'])
             for logger in [loggerJSON, loggerTB]:
                 logger.logkv('step', env_step)
-                # logger.logkv('average return', R / n)
                 logger.logkv('target_mean', stats['target_mean'] / (stats['train_step'] + 1e-5))
                 logger.logkv('ro', stats['ro'] / (stats['train_step'] + 1e-5))
                 logger.logkv('term', stats['term']/nb_ep)

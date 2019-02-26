@@ -25,10 +25,6 @@ class Rooms(Wrapper):
             r = term * self.rTerm + (1 - term) * self.rNotTerm
         return term, r
 
-    def get_stats(self):
-        stats = {}
-        return stats
-
     @property
     def state_dim(self):
         return 2,
