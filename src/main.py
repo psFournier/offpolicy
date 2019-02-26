@@ -111,17 +111,18 @@ if __name__ == '__main__':
         #             demo.append(exp.copy())
         #         agent.process_trajectory(demo)
         exp = {'s0': state.copy(), 'goal': goal.copy(), 'origin': np.expand_dims(0, axis=1)}
-        a, probs = agent.act(state, goal)
+        input = [np.expand_dims(i, axis=0) for i in [state, goal]]
+        a, probs = agent.act(input)
         exp['a0'], exp['mu0'] = a, probs[a]
-        state, r, term, info = env.step(a)
+        state, r, term, info = env.step(a.squeeze())
         exp['s1'] = state.copy()
-        r, term = wrapper.get_r(state, goal, r, term)
+        term, r = wrapper.get_r(state, goal, r, term)
         exp['reward'], exp['terminal'] = r, term
         env_step += 1
         episode_step += 1
         trajectory.append(exp.copy())
 
-        if env_step > 10000:
+        if env_step > 1000:
             train_stats = agent.train_dqn()
             stats['target_mean'] += train_stats['target_mean']
             stats['train_step'] += 1

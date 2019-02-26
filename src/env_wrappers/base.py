@@ -1,5 +1,5 @@
 import numpy as np
-from gym import Wrapper
+from gym import Wrapper, spaces
 
 class Base(Wrapper):
     def __init__(self, env, args):
@@ -10,12 +10,14 @@ class Base(Wrapper):
         self.rTerm = 0 - float(args['--initq'])
 
     def get_g(self):
-        return None
+        return np.empty(0)
 
-    def get_r(self, s, g):
-        term = np.linalg.norm(s-g, axis=-1) < 0.001
-        reward = term * self.rTerm + (1 - term) * self.rNotTerm
-        return term, reward
+    def get_r(self, s, g, r=None, term=None):
+        assert g.size != 0 or r is not None
+        if g.size != 0:
+            term = np.linalg.norm(s - g, axis=-1) < 0.001
+            r = term * self.rTerm + (1 - term) * self.rNotTerm
+        return term, r
 
     def get_stats(self):
         stats = {}
@@ -23,7 +25,7 @@ class Base(Wrapper):
 
     @property
     def state_dim(self):
-        return 2,
+        return self.env.observation_space.low.shape[0],
 
     @property
     def goal_dim(self):
@@ -31,4 +33,4 @@ class Base(Wrapper):
 
     @property
     def action_dim(self):
-        return 4
+        return self.env.action_space.n

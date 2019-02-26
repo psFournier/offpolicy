@@ -14,7 +14,7 @@ register(
 
 register(
     id='CartPole-v0',
-    entry_point='gym.envs.classic_control:CartPoleEnv',
+    entry_point='envs:CartPoleEnv',
     wrapper_entry_point='env_wrappers.base:Base'
 )
 

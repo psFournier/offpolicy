@@ -93,7 +93,7 @@ class Dqn2(object):
         self.targetmodel.set_weights(self.model.get_weights())
 
     def create_critic_network(self, S, G):
-        h = concatenate([subtract([S, G]), S])
+        h = concatenate([S, G])
         for l in self.layers:
             h = Dense(l, activation="relu",
                       kernel_initializer=lecun_uniform(),
@@ -107,8 +107,7 @@ class Dqn2(object):
                    output_shape=(self.num_actions,))(ValAndAdv)
         return Q_values
 
-    def act(self, state, goal):
-        input = [np.expand_dims(i, axis=0) for i in [state, goal]]
+    def act(self, input):
         qvals = self.qvals(input)[0].squeeze()
         if self.args['--exp'] == 'softmax':
             probs = softmax(qvals, theta=self.theta)
@@ -129,7 +128,11 @@ class Dqn2(object):
             if np.random.rand() < self.her:
                 goals = np.vstack([goals, exp['s1']])
             exp['goal'] = goals
-            exp['terminal'], exp['reward'] = self.wrapper.get_r(exp['s1'], goals)
+            if goals.size != 0:
+                exp['terminal'], exp['reward'] = self.wrapper.get_r(exp['s1'], goals)
+            else:
+                exp['terminal'] = np.expand_dims(exp['terminal'], axis=0)
+                exp['reward'] = np.expand_dims(exp['reward'], axis=0)
             self.buffer.append(exp)
 
     def getNStepSequences(self, exps):
