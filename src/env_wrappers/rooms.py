@@ -18,10 +18,12 @@ class Rooms(Wrapper):
             y = self.env.unwrapped.nC - 1
         return np.array(self.env.unwrapped.rescale([x,y]))
 
-    def get_r(self, s, g):
-        term = np.linalg.norm(s-g, axis=-1) < 0.001
-        reward = term * self.rTerm + (1 - term) * self.rNotTerm
-        return term, reward
+    def get_r(self, s, g, r=None, term=None):
+        assert g is not None or r is not None
+        if g is not None:
+            term = np.linalg.norm(s-g, axis=-1) < 0.001
+            r = term * self.rTerm + (1 - term) * self.rNotTerm
+        return term, r
 
     def get_stats(self):
         stats = {}

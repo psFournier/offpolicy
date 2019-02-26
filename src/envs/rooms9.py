@@ -102,7 +102,7 @@ class Rooms9(Env):
         if env_a == Actions.LEFT and self.desc[1 + self.x, 2 * self.y] == b" ":
             self.y = max(self.y - 1, 0)
 
-        return np.array(self.state),
+        return np.array(self.state), 0, 0, {}
 
     def underagent(self):
         for i, obj in enumerate(self.objects):

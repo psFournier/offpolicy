@@ -98,12 +98,26 @@ class Dqn2(object):
             h = Dense(l, activation="relu",
                       kernel_initializer=lecun_uniform(),
                       kernel_regularizer=l2(0.01))(h)
-        Q_values = Dense(self.num_actions,
+        ValAndAdv = Dense(self.num_actions + 1,
                          activation='linear',
                          kernel_initializer=RandomUniform(minval=-3e-4, maxval=3e-4),
                          kernel_regularizer=l2(0.01),
                          bias_initializer=RandomUniform(minval=-3e-4, maxval=3e-4))(h)
+        Q_values = Lambda(lambda a: K.expand_dims(a[:, 0], axis=-1) + a[:, 1:] - K.mean(a[:, 1:], keepdims=True, axis=1),
+                   output_shape=(self.num_actions,))(ValAndAdv)
         return Q_values
+
+    def act(self, state, goal):
+        input = [np.expand_dims(i, axis=0) for i in [state, goal]]
+        qvals = self.qvals(input)[0].squeeze()
+        if self.args['--exp'] == 'softmax':
+            probs = softmax(qvals, theta=self.theta)
+        elif self.args['--exp'] == 'egreedy':
+            probs = egreedy(qvals, eps=self.eps)
+        else:
+            raise RuntimeError
+        action = np.random.choice(range(qvals.shape[0]), p=probs)
+        return np.expand_dims(action, axis=1), probs
 
     def process_trajectory(self, trajectory):
         goals = np.expand_dims(trajectory[-1]['goal'], axis=0)
@@ -171,10 +185,6 @@ class Dqn2(object):
         else:
             raise RuntimeError
 
-        # bootstraps = np.multiply(targetQvalues[-self.batch_size:, :],
-        #                          actionProbs[-self.batch_size:, :])
-        # bootstraps = np.sum(bootstraps, axis=1, keepdims=True)
-
         for i, expe in enumerate(flatExpes):
             expe += [actionProbs[i, :], targetQvalues[i, :]]
 
@@ -234,41 +244,6 @@ class Dqn2(object):
             deltas.append(0)
             targets += [q + delta + tdError for q, delta, tdError in zip(qs, deltas, tdErrors)]
             ros += cs
-
-        res = [np.array(x) for x in [states, actions, goals, targets, origins, ros]]
-        return res
-
-    def get_targets(self, nStepExpes, bootstraps):
-
-        targets = []
-        states = []
-        actions = []
-        goals = []
-        origins = []
-        ros = []
-        ro=1
-        for i in range(len(nStepExpes)):
-            returnVal = bootstraps[i]
-            nStepExpe = nStepExpes[i]
-            for j in reversed(range(len(nStepExpe))):
-                (s0, a0, g, r, t, mu, o, pis, q) = nStepExpe[j]
-                returnVal = r + self._gamma * (1 - t) * returnVal
-                if int(self.args['--targetClip']):
-                    returnVal = np.clip(returnVal,
-                                        self.wrapper.rNotTerm / (1 - self.wrapper._gamma),
-                                        self.wrapper.rTerm)
-                targets.append(returnVal)
-                states.append(s0)
-                actions.append(a0)
-                goals.append(g)
-                origins.append(o)
-                perDecisionRo = pis[a0] / mu
-                if self.args['--IS'] == 'standard':
-                    returnVal *= perDecisionRo
-                elif self.args['--IS'] == 'retrace':
-                    returnVal *= min(1, perDecisionRo)
-                ro *= perDecisionRo
-                ros.append(ro)
 
         res = [np.array(x) for x in [states, actions, goals, targets, origins, ros]]
         return res

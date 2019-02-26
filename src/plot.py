@@ -18,7 +18,7 @@ def quant_inf(x):
 def quant_sup(x):
     return x.quantile(0.75)
 
-dirs = ['2302']
+dirs = ['2502']
 df = pd.concat([pd.read_pickle('../log/cluster/{}/*-v0.pkl'.format(d)) for d in dirs], ignore_index=True)
 
 x = ['step']
@@ -61,27 +61,29 @@ df1 = df1[(df1['--agent'] == 'dqn')]
 df1 = df1[(df1['--multigoal'] == 1)]
 # df1 = df1[(df1['--exp'] == 'softmax')]
 # df1 = df1[(df1['--nstep'] == 8)]
-# df1 = df1[(df1['--IS'] != 1)]
-df1 = df1[(df1['--her'] == 0)]
-df1 = df1[(df1['--initq'] == 0)]
+# df1 = df1[(df1['--IS'] == 'no')]
+df1 = df1[(df1['--her'] == 0.02)]
+# df1 = df1[(df1['--initq'] == 0)]
+df1 = df1[((df1['--lambda'] == 0) & (df1['--IS'] == 'no'))|((df1['--IS'] == 'tb')&(df1['--lambda'] != 0.2))]
+# df1 = df1[(df1['--lambda'] == 1)]
 
 
 
-y = 'ro'
+y = 'term'
 for p in params: print(p, df1[p].unique())
 df1 = df1.groupby(x + params).agg({y:[np.median, np.mean, np.std, quant_inf, quant_sup]}).reset_index()
 p1 = [p for p in params if len(df1[p].unique()) > 1]
 # p1 = 'num_run'
 
 for j, (name, g) in enumerate(df1.groupby(p1)):
-    # axes[0, 0].plot(g['step'], g[y]['median'], label=name)
-    # axes[0, 0].fill_between(g['step'],
-    #                        g[y]['quant_inf'],
-    #                        g[y]['quant_sup'], alpha=0.25, linewidth=0)
-    axes[0, 0].plot(g['step'], g[y]['mean'], label=name)
+    axes[0, 0].plot(g['step'], g[y]['median'], label=name)
     axes[0, 0].fill_between(g['step'],
-                            g[y]['mean'] - 0.5 * g[y]['std'],
-                            g[y]['mean'] + 0.5 * g[y]['std'], alpha=0.25, linewidth=0)
+                           g[y]['quant_inf'],
+                           g[y]['quant_sup'], alpha=0.25, linewidth=0)
+    # axes[0, 0].plot(g['step'], g[y]['mean'], label=name)
+    # axes[0, 0].fill_between(g['step'],
+    #                         g[y]['mean'] - 0.5 * g[y]['std'],
+    #                         g[y]['mean'] + 0.5 * g[y]['std'], alpha=0.25, linewidth=0)
     # axes[0, 0].scatter(g['step'], g[y], label=name)
 axes[0, 0].legend()
 # axes[0, 0].set_xlim([0,100000])

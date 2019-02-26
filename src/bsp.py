@@ -13,13 +13,14 @@ import tensorflow as tf
 from utils.util import softmax, egreedy
 import time
 
-class TB(object):
+class BSP(object):
     def __init__(self, args, wrapper):
         self.wrapper = wrapper
 
         self.tau = 0.001
         self.a_dim = (1,)
-        self.gamma = 0.99
+        self._gamma = 0.99
+        self._lambda = float(args['--lambda'])
         self.margin = float(args['--margin'])
         self.layers = [int(l) for l in args['--layers'].split(',')]
         self.her = float(args['--her'])
@@ -30,11 +31,9 @@ class TB(object):
         self.initModels()
         self.initTargetModels()
 
-        self.alpha = float(args['--alpha'])
-        if self.alpha == 0:
-            self.buffer = ReplayBuffer(limit=int(5e4))
-        else:
-            self.buffer = PrioritizedReplayBuffer(limit=int(5e4), alpha=self.alpha)
+        self.K = 10
+
+        self.buffers = [ReplayBuffer(limit=int(5e4)) for _ in range(self.K)]
         self.batch_size = int(64 / self.nstep)
         self.train_step = 0
 
@@ -97,11 +96,13 @@ class TB(object):
             h = Dense(l, activation="relu",
                       kernel_initializer=lecun_uniform(),
                       kernel_regularizer=l2(0.01))(h)
-        Q_values = Dense(self.num_actions,
+        ValAndAdv = Dense(self.num_actions + 1,
                          activation='linear',
                          kernel_initializer=RandomUniform(minval=-3e-4, maxval=3e-4),
                          kernel_regularizer=l2(0.01),
                          bias_initializer=RandomUniform(minval=-3e-4, maxval=3e-4))(h)
+        Q_values = Lambda(lambda a: K.expand_dims(a[:, 0], axis=-1) + a[:, 1:] - K.mean(a[:, 1:], keepdims=True, axis=1),
+                   output_shape=(self.num_actions,))(ValAndAdv)
         return Q_values
 
     def process_trajectory(self, trajectory):
@@ -170,43 +171,65 @@ class TB(object):
         else:
             raise RuntimeError
 
-        bootstraps = np.multiply(targetQvalues[-self.batch_size:, :],
-                                 actionProbs[-self.batch_size:, :])
-        bootstraps = np.sum(bootstraps, axis=1, keepdims=True)
-
         for i, expe in enumerate(flatExpes):
             expe += [actionProbs[i, :], targetQvalues[i, :]]
 
-        return nStepExpes, bootstraps
+        for i in range(len(nStepExpes)):
+            nStepExpes[i].append([actionProbs[-self.batch_size + i, :], targetQvalues[-self.batch_size + i, :]])
 
-    def get_targets(self, nStepExpes, bootstraps):
+        return nStepExpes
 
+    def getTargetsSumTD(self, nStepExpes):
         targets = []
         states = []
         actions = []
         goals = []
         origins = []
         ros = []
-        ro = 1
-        for i in range(len(nStepExpes)):
-            returnVal = bootstraps[i]
-            nStepExpe = nStepExpes[i]
-            for j in reversed(range(len(nStepExpe))):
-                (s0, a0, g, r, t, mu, o, pis, q) = nStepExpe[j]
-                returnVal = r + self.gamma * (1 - t) * returnVal
-                if int(self.args['--targetClip']):
-                    returnVal = np.clip(returnVal,
-                                        self.wrapper.rNotTerm / (1 - self.wrapper.gamma),
-                                        self.wrapper.rTerm)
-                targets.append(returnVal)
+        for nStepExpe in nStepExpes:
+            tdErrors = []
+            cs = []
+            qs = []
+
+            for expe1, expe2 in zip(nStepExpe[:-1], nStepExpe[1:]):
+
+                s0, a0, g, r, t, mu, o, pis, qt = expe1
                 states.append(s0)
                 actions.append(a0)
                 goals.append(g)
                 origins.append(o)
-                q[a0] = returnVal
-                returnVal = np.sum(np.multiply(pis, q), keepdims=True)
-                ro *= pis[a0] / mu
-                ros.append(ro)
+                q = qt[a0]
+                qs.append(q)
+                pisNext, qtNext = expe2[-2:]
+
+                ### Calcul des one-step td errors variable selon la méthode
+                b = np.sum(np.multiply(qtNext, pisNext), keepdims=True)
+                b = r + (1 - t) * self._gamma * b
+                if int(self.args['--targetClip']):
+                    b = np.clip(b, self.wrapper.rNotTerm / (1 - self._gamma), self.wrapper.rTerm)
+
+                tdErrors.append((b - q).squeeze())
+
+                ### Calcul des ratios variable selon la méthode
+                if self.args['--IS'] == 'no':
+                    cs.append(self._gamma * self._lambda)
+                elif self.args['--IS'] == 'standard':
+                    ro = pis[a0] / mu
+                    cs.append(ro * self._gamma * self._lambda)
+                elif self.args['--IS'] == 'retrace':
+                    ro = pis[a0] / mu
+                    cs.append(min(1, ro) * self._gamma * self._lambda)
+                elif self.args['--IS'] == 'tb':
+                    cs.append(pis[a0] * self._gamma * self._lambda)
+                else:
+                    raise RuntimeError
+
+            deltas = []
+            for i in range(len(tdErrors) - 1):
+                deltas.append(np.sum(np.multiply(tdErrors[i+1:], np.cumprod(cs[i+1:]))))
+            deltas.append(0)
+            targets += [q + delta + tdError for q, delta, tdError in zip(qs, deltas, tdErrors)]
+            ros += cs
 
         res = [np.array(x) for x in [states, actions, goals, targets, origins, ros]]
         return res
@@ -218,8 +241,8 @@ class TB(object):
         # if self.alpha != 0:
         #     names.append('indices')
         nStepExpes, nStepEnds = self.getNStepSequences(exps)
-        nStepExpes, bootstraps = self.getQvaluesAndBootstraps(nStepExpes, nStepEnds)
-        states, actions, goals, targets, origins, ros = self.get_targets(nStepExpes, bootstraps)
+        nStepExpes = self.getQvaluesAndBootstraps(nStepExpes, nStepEnds)
+        states, actions, goals, targets, origins, ros = self.getTargetsSumTD(nStepExpes)
         train_stats['target_mean'] = np.mean(targets)
         train_stats['ro'] = np.mean(ros)
         inputs = [states, actions, goals, targets, origins, np.ones_like(targets)]

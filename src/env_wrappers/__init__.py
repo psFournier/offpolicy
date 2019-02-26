@@ -12,6 +12,12 @@ register(
     wrapper_entry_point='env_wrappers.rooms:Rooms'
 )
 
+register(
+    id='CartPole-v0',
+    entry_point='gym.envs.classic_control:CartPoleEnv',
+    wrapper_entry_point='env_wrappers.base:Base'
+)
+
 # register(
 #     id='Rooms2-v0',
 #     entry_point='envs:Rooms2',
