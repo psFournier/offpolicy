@@ -8,6 +8,7 @@ class Rooms(Wrapper):
         self.multigoal = bool(int(args['--multigoal']))
         self.rNotTerm = -1 + (self.gamma - 1) * float(args['--initq'])
         self.rTerm = 0 - float(args['--initq'])
+        self.her = float(args['--her'])
 
     def reset(self, state):
         exp = {}
@@ -32,6 +33,21 @@ class Rooms(Wrapper):
         exp['terminal'] = np.linalg.norm(s-g, axis=-1) < 0.001
         exp['reward'] = exp['terminal'] * self.rTerm + (1 - exp['terminal']) * self.rNotTerm
         return exp
+
+    def process_trajectory(self, trajectory):
+        goals = np.expand_dims(trajectory[-1]['goal'], axis=0)
+        new_trajectory = []
+        for i, exp in enumerate(reversed(trajectory)):
+            if i == 0:
+                exp['next'] = None
+            else:
+                exp['next'] = trajectory[-i]
+            if np.random.rand() < self.her:
+                goals = np.vstack([goals, exp['s1']])
+            exp['goal'] = goals
+            exp = self.get_r(exp)
+            new_trajectory.append(exp)
+        return new_trajectory
 
     @property
     def state_dim(self):

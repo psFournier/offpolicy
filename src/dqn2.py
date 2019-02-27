@@ -23,7 +23,6 @@ class Dqn2(object):
         self._lambda = float(args['--lambda'])
         self.margin = float(args['--margin'])
         self.layers = [int(l) for l in args['--layers'].split(',')]
-        self.her = float(args['--her'])
         self.nstep = int(args['--nstep'])
         self.args = args
 
@@ -120,20 +119,8 @@ class Dqn2(object):
         return np.expand_dims(action, axis=1), probs
 
     def process_trajectory(self, trajectory):
-        goals = np.expand_dims(trajectory[-1]['goal'], axis=0)
-        for i, exp in enumerate(reversed(trajectory)):
-            if i==0:
-                exp['next'] = None
-            else:
-                exp['next'] = trajectory[-i]
-            if np.random.rand() < self.her:
-                goals = np.vstack([goals, exp['s1']])
-            exp['goal'] = goals
-            if goals.size != 0:
-                exp = self.wrapper.get_r(exp)
-            else:
-                exp['terminal'] = np.expand_dims(exp['terminal'], axis=0)
-                exp['reward'] = np.expand_dims(exp['reward'], axis=0)
+        trajectory = self.wrapper.process_trajectory(trajectory)
+        for exp in trajectory:
             self.buffer.append(exp)
 
     def getNStepSequences(self, exps):

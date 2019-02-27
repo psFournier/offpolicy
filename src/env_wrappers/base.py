@@ -25,6 +25,18 @@ class Base(Wrapper):
         exp['reward'] = r
         return exp
 
+    def process_trajectory(self, trajectory):
+        new_trajectory = []
+        for i, exp in enumerate(reversed(trajectory)):
+            if i == 0:
+                exp['next'] = None
+            else:
+                exp['next'] = trajectory[-i]
+            exp['terminal'] = np.expand_dims(exp['terminal'], axis=0)
+            exp['reward'] = np.expand_dims(exp['reward'], axis=0)
+            new_trajectory.append(exp)
+        return new_trajectory
+
     @property
     def state_dim(self):
         return self.env.observation_space.low.shape[0],
