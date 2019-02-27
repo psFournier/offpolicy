@@ -11,13 +11,17 @@ class Playroom(Wrapper):
         vs = np.zeros(shape=(self.state_dim[0] - 2, self.state_dim[0]))
         vs[np.arange(self.state_dim[0] - 2), range(2, self.state_dim[0])] = 1
         self.vs = vs / np.sum(vs, axis=1, keepdims=True)
+        self.mode = 'train'
 
-    def reset(self, state, mode='train'):
+    def reset(self, state):
         exp = {}
         exp['s0'] = state
 
         v = np.zeros(self.state_dim)
-        idx = np.random.randint(2, self.state_dim[0])
+        if self.mode == 'train':
+            idx = np.random.randint(2, 5)
+        else:
+            idx = np.random.randint(5, self.state_dim[0])
         v[idx] = 1
 
         g = np.zeros(self.state_dim)

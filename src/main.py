@@ -46,6 +46,7 @@ Options:
   --exp VAL                [default: softmax]
   --targetClip VAL         [default: 0]
   --lambda VAL             [default: 0]
+  --bootstrap VAL          [default: expectation]
 """
 
 if __name__ == '__main__':
