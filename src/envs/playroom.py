@@ -84,19 +84,19 @@ class Playroom(Env):
 
         self.obj3 = Obj(self,
                         prop=[0, 1],
-                        dep=[(8,8), (2,8), (2, 2), (5, 7)])
+                        dep=[(8, 8), (2, 8), (2, 2), (5, 7)])
 
         self.obj4 = Obj(self,
                         prop=[0, 1],
-                        dep=[(8,8), (2,8), (2, 2), (5, 7), (3, 9)])
+                        dep=[(5, 7), (3, 9)])
 
         self.obj5 = Obj(self,
                         prop=[0, 1],
-                        dep=[(8,8), (2,8), (2, 2), (5, 7), (3, 9), (2, 6)])
+                        dep=[(5, 7), (3, 9), (2, 6)])
 
         self.obj6 = Obj(self,
                         prop=[0, 1],
-                        dep=[(8,8), (2,8), (2, 2), (5, 7), (6, 10), (2, 6), (5, 5)])
+                        dep=[(5, 7), (6, 2), (2, 6), (5, 5)])
 
         # for i, o in enumerate(self.objects):
         #     o.tutor_only = (i+2 in self.tutoronly)
