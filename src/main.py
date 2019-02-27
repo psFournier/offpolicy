@@ -76,7 +76,8 @@ if __name__ == '__main__':
     stats = {'target_mean': 0,
              'train_step': 0,
              'ro': 0,
-             'term': 0}
+             'term': 0,
+             'reward': 0}
     nb_ep = 0
 
     # model = load_model('../log/local/3_Rooms1-v0/20190212112608_490218/log_steps/model')
@@ -118,7 +119,9 @@ if __name__ == '__main__':
         exp = wrapper.get_r(exp, r, term)
         env_step += 1
         episode_step += 1
+        stats['reward'] += exp['reward']
         trajectory.append(exp.copy())
+        exp['s0'] = state
 
         if env_step > 10000:
             train_stats = agent.train_dqn()
@@ -160,12 +163,14 @@ if __name__ == '__main__':
                 logger.logkv('target_mean', stats['target_mean'] / (stats['train_step'] + 1e-5))
                 logger.logkv('ro', stats['ro'] / (stats['train_step'] + 1e-5))
                 logger.logkv('term', stats['term']/nb_ep)
+                logger.logkv('reward', stats['reward'] / nb_ep)
                 logger.dumpkvs()
 
             stats['target_mean'] = 0
             stats['ro'] = 0
             stats['train_step'] = 0
             stats['term'] = 0
+            stats['reward'] = 0
             nb_ep = 0
 
             t1 = time.time()

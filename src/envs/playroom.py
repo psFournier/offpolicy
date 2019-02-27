@@ -28,7 +28,7 @@ class Obj():
 
     @property
     def state(self):
-        return [self.s]
+        return self.s
 
     @property
     def high(self):

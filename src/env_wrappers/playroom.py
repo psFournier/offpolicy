@@ -1,7 +1,5 @@
 import numpy as np
 from gym import Wrapper
-from samplers.competenceQueue import CompetenceQueue
-from buffers import MultiReplayBuffer, ReplayBuffer
 
 class Playroom(Wrapper):
     def __init__(self, env, args):
@@ -25,7 +23,7 @@ class Playroom(Wrapper):
             g[idx] = (np.random.randint(l, h) - l) / (h -l)
         else:
             g[idx] = 1
-        exp['goal'] = np.vstack([g, v])
+        exp['goal'] = np.hstack([g, v])
 
         return exp
 
@@ -35,8 +33,8 @@ class Playroom(Wrapper):
 
     def get_r(self, exp, r=None, term=None):
         s, g = exp['s1'], exp['goal']
-        g, v = np.split(g, self.state_dim)
-        exp['terminal'] = np.linalg.norm(np.sum(np.multiply(v, s-g), axis=1, keepdims=True), axis=-1) < 0.001
+        g, v = np.split(g, self.state_dim, axis=-1)
+        exp['terminal'] = np.linalg.norm(np.multiply(v, s-g), axis=-1) < 0.001
         exp['reward'] = exp['terminal'] * self.rTerm + (1 - exp['terminal']) * self.rNotTerm
         return exp
 
@@ -65,7 +63,7 @@ class Playroom(Wrapper):
 
     @property
     def goal_dim(self):
-        return 8,
+        return 2*self.state_dim[0],
 
     @property
     def action_dim(self):

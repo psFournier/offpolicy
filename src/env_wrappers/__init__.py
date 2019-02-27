@@ -27,6 +27,12 @@ register(
 )
 
 register(
+    id='Playroom-v0',
+    entry_point='envs:Playroom',
+    wrapper_entry_point='env_wrappers.playroom:Playroom'
+)
+
+register(
     id='Breakout-v0',
     entry_point='gym.envs.atari:AtariEnv',
     kwargs={'game': 'breakout', 'obs_type': 'ram', 'repeat_action_probability': 0.25},

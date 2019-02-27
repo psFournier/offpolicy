@@ -221,8 +221,11 @@ class Dqn2(object):
                 pisNext, qtNext = expe2[-2:]
 
                 ### Calcul des one-step td errors variable selon la méthode
-                b = np.sum(np.multiply(qtNext, pisNext), keepdims=True)
+                # b = np.sum(np.multiply(qtNext, pisNext), keepdims=True)
+                amax = np.argwhere(pisNext == np.max(pisNext)).flatten().tolist()
+                b = qtNext[np.random.choice(amax)]
                 b = r + (1 - t) * self._gamma * b
+                # b = np.clip(b, 0, 100)
                 if int(self.args['--targetClip']):
                     b = np.clip(b, self.wrapper.rNotTerm / (1 - self._gamma), self.wrapper.rTerm)
 
@@ -276,8 +279,8 @@ class Dqn2(object):
 
     @property
     def eps(self):
-        if self.train_step < 1e5:
-            eps = 1 + ((0.1 - 1) / 1e5) * self.train_step
+        if self.train_step < 1e4:
+            eps = 1 + ((0.1 - 1) / 1e4) * self.train_step
         else:
             eps = 0.1
         return eps

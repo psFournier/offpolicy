@@ -18,7 +18,7 @@ def quant_inf(x):
 def quant_sup(x):
     return x.quantile(0.75)
 
-dirs = ['2502']
+dirs = ['2702']
 df = pd.concat([pd.read_pickle('../log/cluster/{}/*-v0.pkl'.format(d)) for d in dirs], ignore_index=True)
 
 x = ['step']
@@ -56,15 +56,15 @@ a, b = 1,1
 fig, axes = plt.subplots(a, b, figsize=(15,9), squeeze=False, sharex=True)
 
 df1 = df.copy()
-df1 = df1[(df1['--env'] == 'Rooms9-v0')]
+# df1 = df1[(df1['--env'] == 'Rooms9-v0')]
 df1 = df1[(df1['--agent'] == 'dqn')]
-df1 = df1[(df1['--multigoal'] == 1)]
+# df1 = df1[(df1['--multigoal'] == 1)]
 # df1 = df1[(df1['--exp'] == 'softmax')]
 # df1 = df1[(df1['--nstep'] == 8)]
 # df1 = df1[(df1['--IS'] == 'no')]
-df1 = df1[(df1['--her'] == 0.02)]
+# df1 = df1[(df1['--her'] == 0.02)]
 # df1 = df1[(df1['--initq'] == 0)]
-df1 = df1[((df1['--lambda'] == 0) & (df1['--IS'] == 'no'))|((df1['--IS'] == 'tb')&(df1['--lambda'] != 0.2))]
+# df1 = df1[((df1['--lambda'] == 0) & (df1['--IS'] == 'no'))|((df1['--IS'] == 'tb')&(df1['--lambda'] != 0.2))]
 # df1 = df1[(df1['--lambda'] == 1)]
 
 
@@ -87,6 +87,6 @@ for j, (name, g) in enumerate(df1.groupby(p1)):
     # axes[0, 0].scatter(g['step'], g[y], label=name)
 axes[0, 0].legend()
 # axes[0, 0].set_xlim([0,100000])
-# axes[0, 0].set_ylim([0,4])
+axes[0, 0].set_ylim([0.99,1.01])
 
 plt.show()
