@@ -6,11 +6,10 @@ class Base(Wrapper):
         super(Base, self).__init__(env)
         assert int(args['--targetClip']) == 0
         self.gamma = float(args['--gamma'])
-        self.multigoal = bool(int(args['--multigoal']))
         self.rNotTerm = -1 + (self.gamma - 1) * float(args['--initq'])
         self.rTerm = 0 - float(args['--initq'])
 
-    def reset(self, state):
+    def reset(self, state, mode='train'):
         exp = {}
         exp['s0'] = state
         exp['goal'] = np.empty(0)

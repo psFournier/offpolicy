@@ -5,23 +5,23 @@ class Rooms(Wrapper):
     def __init__(self, env, args):
         super(Rooms, self).__init__(env)
         self.gamma = float(args['--gamma'])
-        self.multigoal = bool(int(args['--multigoal']))
         self.rNotTerm = -1 + (self.gamma - 1) * float(args['--initq'])
         self.rTerm = 0 - float(args['--initq'])
         self.her = float(args['--her'])
+        self.mode = 'train'
 
     def reset(self, state):
         exp = {}
         exp['s0'] = state
 
-        if self.multigoal:
-            x = np.random.randint(self.env.unwrapped.nR)
+        if self.mode == 'train':
+            x = 0
             y = np.random.randint(self.env.unwrapped.nC)
         else:
             x = self.env.unwrapped.nR - 1
-            y = self.env.unwrapped.nC - 1
-        exp['goal'] = np.array(self.env.unwrapped.rescale([x,y]))
+            y = np.random.randint(self.env.unwrapped.nC)
 
+        exp['goal'] = np.array(self.env.unwrapped.rescale([x,y]))
         return exp
 
     def make_input(self, exp):

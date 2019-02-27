@@ -5,7 +5,6 @@ class Playroom(Wrapper):
     def __init__(self, env, args):
         super(Playroom, self).__init__(env)
         self.gamma = float(args['--gamma'])
-        self.multigoal = bool(int(args['--multigoal']))
         self.rNotTerm = -1 + (self.gamma - 1) * float(args['--initq'])
         self.rTerm = 0 - float(args['--initq'])
         self.her = float(args['--her']) * int(args['--ep_steps'])
@@ -13,9 +12,7 @@ class Playroom(Wrapper):
         vs[np.arange(self.state_dim[0] - 2), range(2, self.state_dim[0])] = 1
         self.vs = vs / np.sum(vs, axis=1, keepdims=True)
 
-
-
-    def reset(self, state):
+    def reset(self, state, mode='train'):
         exp = {}
         exp['s0'] = state
 
@@ -24,11 +21,9 @@ class Playroom(Wrapper):
         v[idx] = 1
 
         g = np.zeros(self.state_dim)
-        if self.multigoal:
-            l, h = self.env.unwrapped.low[idx], self.env.unwrapped.high[idx]
-            g[idx] = (np.random.randint(l, h) - l) / (h -l)
-        else:
-            g[idx] = 1
+        l, h = self.env.unwrapped.low[idx], self.env.unwrapped.high[idx]
+        g[idx] = (np.random.randint(l, h) - l) / (h -l)
+        # g[idx] = 1
         exp['goal'] = np.hstack([g, v])
 
         return exp
@@ -71,26 +66,8 @@ class Playroom(Wrapper):
 
             exp = self.get_r(exp)
             new_trajectory.append(exp)
-        return new_trajectory
 
-    # def process_trajectory(self, trajectory, base_util=None, hindsight=True):
-    #     if base_util is None:
-    #         u = np.zeros(shape=(self.N,))
-    #     else:
-    #         u = base_util
-    #     u = np.expand_dims(u, axis=1)
-    #     # mcr = np.zeros(shape=(self.N,))
-    #     for exp in reversed(trajectory):
-    #         u = self.gamma * u
-    #         if hindsight:
-    #             u[np.where(exp['r1'] > exp['r0'])] = 1
-    #
-    #         # u_idx = np.where(u != 0)
-    #         # mcr[u_idx] = exp['r1'][u_idx] + self.gamma * mcr[u_idx]
-    #         exp['u'] = u.squeeze()
-    #         # exp['mcr'] = mcr
-    #         if any(u!=0):
-    #             self.buffer.append(exp.copy())
+        return new_trajectory
 
     @property
     def state_dim(self):

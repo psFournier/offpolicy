@@ -107,15 +107,22 @@ class Dqn2(object):
         return Q_values
 
     def act(self, exp):
+
         input = self.wrapper.make_input(exp)
         qvals = self.qvals(input)[0].squeeze()
+
         if self.args['--exp'] == 'softmax':
             probs = softmax(qvals, theta=self.theta)
         elif self.args['--exp'] == 'egreedy':
             probs = egreedy(qvals, eps=self.eps)
         else:
             raise RuntimeError
-        action = np.random.choice(range(qvals.shape[0]), p=probs)
+
+        if self.wrapper.mode == 'train':
+            action = np.random.choice(range(qvals.shape[0]), p=probs)
+        else:
+            action = np.argmax(qvals)
+
         return np.expand_dims(action, axis=1), probs
 
     def process_trajectory(self, trajectory):

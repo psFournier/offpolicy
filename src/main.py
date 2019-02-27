@@ -44,7 +44,6 @@ Options:
   --alpha VAL              [default: 0]
   --IS VAL                 [default: no]
   --exp VAL                [default: softmax]
-  --multigoal VAL          [default: 1]
   --targetClip VAL         [default: 0]
   --lambda VAL             [default: 0]
 """
@@ -76,8 +75,11 @@ if __name__ == '__main__':
     stats = {'target_mean': 0,
              'train_step': 0,
              'ro': 0,
-             'term': 0,
-             'reward': 0}
+             'reward_train': 0,
+             'reward_test': 0}
+
+    nb_ep_train = 0
+    nb_ep_test = 0
     nb_ep = 0
 
     # model = load_model('../log/local/3_Rooms1-v0/20190212112608_490218/log_steps/model')
@@ -87,6 +89,8 @@ if __name__ == '__main__':
 
     env_step = 1
     episode_step = 0
+    reward_train = 0
+    reward_test = 0
     trajectory = []
     state = env.reset()
     exp = wrapper.reset(state)
@@ -119,7 +123,12 @@ if __name__ == '__main__':
         exp = wrapper.get_r(exp, r, term)
         env_step += 1
         episode_step += 1
-        stats['reward'] += exp['reward']
+
+        if wrapper.mode == 'train':
+            reward_train += exp['reward']
+        else:
+            reward_test += exp['reward']
+
         trajectory.append(exp.copy())
         exp['s0'] = state
 
@@ -130,13 +139,27 @@ if __name__ == '__main__':
             stats['ro'] += train_stats['ro']
 
         if exp['terminal'] or episode_step >= max_episode_steps:
-            stats['term'] += exp['terminal']
+
+            if wrapper.mode == 'train':
+                nb_ep_train += 1
+                stats['reward_train'] += reward_train
+            else:
+                nb_ep_test += 1
+                stats['reward_test'] += reward_test
+            nb_ep += 1
+            if nb_ep % 10 == 0:
+                wrapper.mode = 'test'
+            else:
+                wrapper.mode = 'train'
+
             agent.process_trajectory(trajectory)
             trajectory.clear()
             state = env.reset()
             exp = wrapper.reset(state)
             episode_step = 0
-            nb_ep += 1
+            reward_train = 0
+            reward_test = 0
+
 
         if env_step % int(args['--eval_freq'])== 0:
             # R = 0
@@ -162,16 +185,17 @@ if __name__ == '__main__':
                 logger.logkv('step', env_step)
                 logger.logkv('target_mean', stats['target_mean'] / (stats['train_step'] + 1e-5))
                 logger.logkv('ro', stats['ro'] / (stats['train_step'] + 1e-5))
-                logger.logkv('term', stats['term']/nb_ep)
-                logger.logkv('reward', stats['reward'] / nb_ep)
+                logger.logkv('reward_train', stats['reward_train'] / (nb_ep_train + 1e-5))
+                logger.logkv('reward_test', stats['reward_test'] / (nb_ep_test + 1e-5))
                 logger.dumpkvs()
 
             stats['target_mean'] = 0
             stats['ro'] = 0
             stats['train_step'] = 0
-            stats['term'] = 0
-            stats['reward'] = 0
-            nb_ep = 0
+            stats['reward_train'] = 0
+            nb_ep_train = 0
+            stats['reward_test'] = 0
+            nb_ep_test = 0
 
             t1 = time.time()
             print(t1- t0)
