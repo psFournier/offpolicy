@@ -66,8 +66,7 @@ class Playroom(Wrapper):
                         j = np.random.randint(1, n_changes+1)
                         if j <= self.her:
                             goals[j] = np.hstack([exp['s1'], v])
-                exp['goal'] = goals
-
+            exp['goal'] = goals
             exp = self.get_r(exp)
             new_trajectory.append(exp)
 
