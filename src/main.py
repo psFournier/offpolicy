@@ -23,7 +23,7 @@ Options:
   --ep_steps VAL           Maximum episode steps [default: 200]
   --ep_tasks VAL           Maximum episode tasks [default: 1]
   --log_dir DIR            Logging directory [default: /home/pierre/PycharmProjects/offpolicy/log/local/]
-  --eval_freq VAL          Logging frequency [default: 2000]
+  --eval_freq VAL          Logging frequency [default: 5000]
   --margin VAL             Large margin loss margin [default: 1]
   --gamma VAL              Discount factor [default: 0.99]
   --batchsize VAL          Batch size [default: 64]
