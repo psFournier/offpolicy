@@ -151,7 +151,7 @@ class Dqn2(object):
                 exp = exp['next']
                 nStepSeq.append([exp['s0'],
                                   exp['a0'],
-                                  exp['goal'][goalIdx],
+                                  exp['goal'][goalIdx], ## Attention pas forcément le meme
                                   exp['reward'][goalIdx],
                                   exp['terminal'][goalIdx],
                                   exp['mu0'],

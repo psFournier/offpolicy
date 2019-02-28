@@ -26,7 +26,7 @@ class Playroom(Wrapper):
 
         g = np.zeros(self.state_dim)
         l, h = self.env.unwrapped.low[idx], self.env.unwrapped.high[idx]
-        g[idx] = (np.random.randint(l, h) - l) / (h -l)
+        g[idx] = (np.random.randint(l+1, h) - l) / (h -l)
         # g[idx] = 1
         exp['goal'] = np.hstack([g, v])
 
@@ -48,11 +48,31 @@ class Playroom(Wrapper):
         new_trajectory = []
         n_changes = 0
 
+        # Reservoir sampling for HER
+        # if self.her != 0:
+        #     virtual_idx = []
+        #     for i, exp in enumerate(reversed(trajectory)):
+        #         changes = np.where(exp['s0'][2:] != exp['s1'][2:])[0]
+        #         for change in changes:
+        #             n_changes += 1
+        #             if len(virtual_idx) < self.her:
+        #                 virtual_idx.append((i, change))
+        #             else:
+        #                 j = np.random.randint(0, n_changes)
+        #                 if j < self.her:
+        #                     virtual_idx[j] = (i, change)
+
         for i, exp in enumerate(reversed(trajectory)):
             if i == 0:
                 exp['next'] = None
             else:
                 exp['next'] = trajectory[-i]
+
+            # if self.her != 0:
+            #     virtual_goals = [np.hstack([trajectory[idx]['s1'], self.vs[c]]) for idx, c in virtual_idx if idx >= i]
+            #     exp['goal'] = np.vstack([trajectory[-1]['goal']] + virtual_goals)
+            # else:
+            #     exp['goal'] = np.expand_dims(trajectory[-1]['goal'], axis=0)
 
             # Reservoir sampling for HER
             if self.her != 0:
@@ -63,10 +83,11 @@ class Playroom(Wrapper):
                     if goals.shape[0] <= self.her:
                         goals = np.vstack([goals, np.hstack([exp['s1'], v])])
                     else:
-                        j = np.random.randint(1, n_changes+1)
+                        j = np.random.randint(1, n_changes + 1)
                         if j <= self.her:
                             goals[j] = np.hstack([exp['s1'], v])
             exp['goal'] = goals
+
             exp = self.get_r(exp)
             new_trajectory.append(exp)
 
