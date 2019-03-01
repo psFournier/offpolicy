@@ -118,10 +118,8 @@ class Dqn2(object):
         else:
             raise RuntimeError
 
-        if self.wrapper.mode == 'train':
-            action = np.random.choice(range(qvals.shape[0]), p=probs)
-        else:
-            action = np.argmax(qvals)
+        action = np.random.choice(range(qvals.shape[0]), p=probs)
+        # action = np.argmax(qvals)
 
         return np.expand_dims(action, axis=1), probs
 

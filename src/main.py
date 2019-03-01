@@ -148,11 +148,11 @@ if __name__ == '__main__':
                 nb_ep_test += 1
                 stats['reward_test'] += reward_test
             nb_ep += 1
+
             if nb_ep % 10 == 0:
                 wrapper.mode = 'test'
             else:
                 wrapper.mode = 'train'
-
             agent.process_trajectory(trajectory)
             trajectory.clear()
             state = env.reset()

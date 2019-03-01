@@ -7,7 +7,8 @@ class Rooms(Wrapper):
         self.gamma = float(args['--gamma'])
         self.rNotTerm = -1 + (self.gamma - 1) * float(args['--initq'])
         self.rTerm = 0 - float(args['--initq'])
-        self.her = float(args['--her']) * int(args['--ep_steps'])
+        # self.her = float(args['--her']) * int(args['--ep_steps'])
+        self.her = float(args['--her'])
         self.mode = 'train'
 
     def reset(self, state):
@@ -46,21 +47,21 @@ class Rooms(Wrapper):
                 exp['next'] = trajectory[-i]
 
             # Reservoir sampling for HER
-            if self.her != 0:
-                changes = np.where(exp['s0'][2:] != exp['s1'][2:])[0]
-                for change in changes:
-                    n_changes += 1
-                    if goals.shape[0] <= self.her:
-                        goals = np.vstack([goals, exp['s1']])
-                    else:
-                        j = np.random.randint(1, n_changes + 1)
-                        if j <= self.her:
-                            goals[j] = exp['s1']
-            exp['goal'] = goals
+            # if self.her != 0:
+            #     changes = np.where(exp['s0'][2:] != exp['s1'][2:])[0]
+            #     for change in changes:
+            #         n_changes += 1
+            #         if goals.shape[0] <= self.her:
+            #             goals = np.vstack([goals, exp['s1']])
+            #         else:
+            #             j = np.random.randint(1, n_changes + 1)
+            #             if j <= self.her:
+            #                 goals[j] = exp['s1']
 
-            # if np.random.rand() < self.her:
-            #     goals = np.vstack([goals, exp['s1']])
-            # exp['goal'] = goals
+            if np.random.rand() < self.her:
+                goals = np.vstack([goals, exp['s1']])
+
+            exp['goal'] = goals
 
             exp = self.get_r(exp)
             new_trajectory.append(exp)

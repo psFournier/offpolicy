@@ -18,7 +18,7 @@ def quant_inf(x):
 def quant_sup(x):
     return x.quantile(0.75)
 
-dirs = ['2802']
+dirs = ['2802', '0103']
 df = pd.concat([pd.read_pickle('../log/cluster/{}/*-v0.pkl'.format(d)) for d in dirs], ignore_index=True)
 
 x = ['step']
@@ -56,11 +56,11 @@ a, b = 1,1
 fig, axes = plt.subplots(a, b, figsize=(15,9), squeeze=False, sharex=True)
 
 df1 = df.copy()
-df1 = df1[(df1['--env'] == 'Playroom-v0')]
+df1 = df1[(df1['--env'] == 'Rooms9Multi-v0')]
 df1 = df1[(df1['--agent'] == 'dqn')]
 # df1 = df1[(df1['--multigoal'] == 1)]
 # df1 = df1[(df1['--exp'] == 'softmax')]
-# df1 = df1[(df1['--nstep'] == 8)]
+df1 = df1[(df1['--nstep'] == 1)]
 # df1 = df1[(df1['--IS'] == 'no')]
 # df1 = df1[(df1['--her'] != 0)]
 # df1 = df1[(df1['--initq'] == 0)]
