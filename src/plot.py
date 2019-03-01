@@ -18,7 +18,7 @@ def quant_inf(x):
 def quant_sup(x):
     return x.quantile(0.75)
 
-dirs = ['2802', '0103']
+dirs = ['2802','0103']
 df = pd.concat([pd.read_pickle('../log/cluster/{}/*-v0.pkl'.format(d)) for d in dirs], ignore_index=True)
 
 x = ['step']

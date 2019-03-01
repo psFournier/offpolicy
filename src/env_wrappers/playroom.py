@@ -11,22 +11,18 @@ class Playroom(Wrapper):
         vs = np.zeros(shape=(self.state_dim[0] - 2, self.state_dim[0]))
         vs[np.arange(self.state_dim[0] - 2), range(2, self.state_dim[0])] = 1
         self.vs = vs / np.sum(vs, axis=1, keepdims=True)
-        self.mode = 'train'
 
     def reset(self, state):
         exp = {}
         exp['s0'] = state
 
         v = np.zeros(self.state_dim)
-        if self.mode == 'train':
-            idx = np.random.randint(2, 5)
-        else:
-            idx = np.random.randint(5, self.state_dim[0])
-        v[idx] = 1
+        self.idx = np.random.randint(2, self.state_dim[0])
+        v[self.idx] = 1
 
         g = np.zeros(self.state_dim)
-        l, h = self.env.unwrapped.low[idx], self.env.unwrapped.high[idx]
-        g[idx] = (np.random.randint(l+1, h) - l) / (h -l)
+        l, h = self.env.unwrapped.low[self.idx], self.env.unwrapped.high[self.idx]
+        g[self.idx] = (np.random.randint(l+1, h) - l) / (h -l)
         # g[idx] = 1
         exp['goal'] = np.hstack([g, v])
 

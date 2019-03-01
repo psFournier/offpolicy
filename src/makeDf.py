@@ -10,6 +10,8 @@ frames = []
 for run in runs:
 
     config = pd.read_json(os.path.join(run, 'config.txt'), lines=True)
+    if config.at[0, '--her'] == 0.02:
+        config.at[0, '--her'] = 0.021
     try:
         df = pd.read_json(os.path.join(run, 'progress.json'), lines=True)
         config = pd.concat([config] * df.shape[0], ignore_index=True)

@@ -11,20 +11,13 @@ class Actions:
 
 
 class Obj():
-    def __init__(self, env, prop, dep, tutor_only=False):
+    def __init__(self, env, dep):
         self.env = env
-        self.prop = prop
         self.dep = dep
-        self.env.objects.append(self)
         self.init()
-        self.tutor_only = tutor_only
 
     def init(self):
         self.s = 0
-
-    # def touch(self, tutor):
-    #     if self.s == 0 and (not self.tutor_only or tutor):
-    #         self.s = np.random.choice([0, 1], p=self.prop)
 
     @property
     def state(self):
@@ -38,10 +31,23 @@ class Obj():
     def low(self):
         return [0]
 
+def genDep():
+    seen = set()
+    x, y = randint(0, 14), randint(0, 14)
+    while True:
+        seen.add((x, y))
+        yield (x, y)
+        x, y = randint(0, 14), randint(0, 14)
+        while (x, y) in seen:
+            x, y = randint(0, 14), randint(0, 14)
+
+POS_LIST = [(9, 2), (2, 14), (7, 10), (8, 1), (2, 0), (4, 7), (14, 3), (9, 9), (0, 2), (4, 5), (1, 0), (14, 1), (7, 3), (2, 1), (12, 5), (14, 1), (14, 8), (5, 5), (1, 13), (7, 14), (2, 3), (8, 0), (5, 12), (11, 6), (14, 10), (4, 10), (8, 11), (4, 1), (3, 7), (6, 14)]
+
+
 class Playroom(Env):
     metadata = {'render.modes': ['human', 'ansi']}
 
-    def __init__(self, multistart=False):
+    def __init__(self, multistart=True):
         self.desc = np.asarray([
             " _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
             "|                             |",
@@ -63,7 +69,24 @@ class Playroom(Env):
         self.nR = self.desc.shape[0]-1
         self.nC = (self.desc.shape[1]-1)/2
         self.multistart = multistart
+        self.N = 10
+        self.L = 3
+        self.objectDepGen = self.genDep()
+        self.objects = []
+        for i in range(self.N):
+            self.objects.append(Obj(self,
+                                    dep=[POS_LIST[self.L * i + j] for j in range(self.L)]))
         self.initialize()
+
+    def genDep(self):
+        seen = set()
+        x, y = randint(0, self.nR), randint(0, self.nC)
+        while True:
+            seen.add((x, y))
+            yield (x, y)
+            x, y = randint(0, self.nR), randint(0, self.nC)
+            while (x, y) in seen:
+                x, y = randint(0, self.nR), randint(0, self.nC)
 
     def initialize(self):
         if self.multistart:
@@ -72,36 +95,8 @@ class Playroom(Env):
         else:
             self.x = 0
             self.y = 0
-        self.objects = []
-
-        self.obj1 = Obj(self,
-                        prop=[0, 1],
-                        dep=[(8,8), (2,8)])
-
-        self.obj2 = Obj(self,
-                        prop=[0, 1],
-                        dep=[(8,8), (2,8), (2, 2)])
-
-        self.obj3 = Obj(self,
-                        prop=[0, 1],
-                        dep=[(8, 8), (2, 8), (2, 2), (5, 7)])
-
-        self.obj4 = Obj(self,
-                        prop=[0, 1],
-                        dep=[(5, 7), (3, 9)])
-
-        self.obj5 = Obj(self,
-                        prop=[0, 1],
-                        dep=[(5, 7), (3, 9), (2, 6)])
-
-        self.obj6 = Obj(self,
-                        prop=[0, 1],
-                        dep=[(5, 7), (6, 2), (2, 6), (5, 5)])
-
-        # for i, o in enumerate(self.objects):
-        #     o.tutor_only = (i+2 in self.tutoronly)
-
-        self.initstate = self.state.copy()
+        for obj in self.objects:
+            obj.s = 0
         self.lastaction = None
 
     def step(self, a, tutor=False):
@@ -124,44 +119,14 @@ class Playroom(Env):
 
         elif env_a == Actions.TOUCH:
             for obj in self.objects:
-                if (not obj.tutor_only or tutor) and obj.s < obj.high[0] and (self.x, self.y) == obj.dep[obj.s]:
-                    obj.s = np.random.choice([obj.s, obj.s + 1], p=obj.prop)
+                if obj.s < obj.high[0] and (self.x, self.y) == obj.dep[obj.s]:
+                    obj.s = np.random.choice([obj.s, obj.s + 1], p=[0, 1])
 
         return np.array(self.state), 0, 0, {}
-
-    def underagent(self):
-        for i, obj in enumerate(self.objects):
-            if obj.x == self.x and obj.y == self.y:
-                return i+1
-        return 0
 
     def reset(self):
         self.initialize()
         return np.array(self.state)
-
-    # def go(self, x , y):
-    #     dx = x - self.x
-    #     dy = y - self.y
-    #     p = []
-    #     if dx > 0:
-    #         p.append(Actions.RIGHT)
-    #     elif dx < 0:
-    #         p.append(Actions.LEFT)
-    #     if dy > 0:
-    #         p.append(Actions.UP)
-    #     elif dy < 0:
-    #         p.append(Actions.DOWN)
-    #     if p:
-    #         return np.random.choice(p)
-    #     else:
-    #         return None
-    #
-    # def touch(self, x, y):
-    #     a = self.go(x, y)
-    #     if a is None:
-    #         return Actions.TOUCH, False
-    #     else:
-    #         return a, False
 
     @property
     def high(self):
@@ -188,28 +153,51 @@ class Playroom(Env):
             res += obj.low
         return res
 
-    # def opt_action(self, t):
-    #     obj = self.objects[t-2]
-    #     if obj.state == obj.high:
-    #         return -1, True
-    #     else:
-    #         dep = obj.dep[obj.s]
-    #         return self.touch(dep[0], dep[1])
+    def go(self, x, y):
+        dx = x - self.x
+        dy = y - self.y
+        p = []
+        if dx > 0:
+            p.append(Actions.UP)
+        elif dx < 0:
+            p.append(Actions.DOWN)
+        if dy > 0:
+            p.append(Actions.RIGHT)
+        elif dy < 0:
+            p.append(Actions.LEFT)
+        if p:
+            return np.random.choice(p)
+        else:
+            return None
+
+    def touch(self, x, y):
+        a = self.go(x, y)
+        if a is None:
+            return Actions.TOUCH, False
+        else:
+            return a, False
+
+    def opt_action(self, t):
+        obj = self.objects[t]
+        if obj.state == obj.high:
+            return -1, True
+        else:
+            dep = obj.dep[obj.s]
+            return self.touch(dep[0], dep[1])
 
 if __name__ == '__main__':
-    env = Playroom(multistart=False)
+    env = Playroom(multistart=True)
     s = env.reset()
-    task = np.random.choice([7])
-    # while True:
-    #     print(s)
-    #     a, done = env.opt_action(task)
-    #     if done:
-    #         break
-    #     else:
-    #         a = np.expand_dims(a, axis=1)
-    #         s = env.step(a, True)[0]
-
-
+    task = np.random.choice([1
+                             ])
+    while True:
+        print(s)
+        a, done = env.opt_action(task)
+        if done:
+            break
+        else:
+            a = np.expand_dims(a, axis=1)
+            s = env.step(a, True)[0]
 
     # def render(self, mode='human'):
     #     outfile = StringIO() if mode == 'ansi' else sys.stdout
