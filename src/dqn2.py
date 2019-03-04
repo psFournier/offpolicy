@@ -35,7 +35,7 @@ class Dqn2(object):
             self.buffer = ReplayBuffer(limit=int(5e4))
         else:
             self.buffer = PrioritizedReplayBuffer(limit=int(5e4), alpha=self.alpha)
-        self.batch_size = int(64 / self.nstep)
+        self.batch_size = 64
         self.train_step = 0
 
     def initModels(self):

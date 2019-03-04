@@ -17,7 +17,8 @@ class Playroom(Wrapper):
         exp['s0'] = state
 
         v = np.zeros(self.state_dim)
-        self.idx = np.random.randint(2, self.state_dim[0])
+        # self.idx = np.random.randint(2, self.state_dim[0])
+        self.idx = 2
         v[self.idx] = 1
 
         g = np.zeros(self.state_dim)

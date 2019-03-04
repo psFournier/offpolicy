@@ -35,7 +35,7 @@ class Dqn3(object):
             self.buffer = ReplayBuffer(limit=int(5e4))
         else:
             self.buffer = PrioritizedReplayBuffer(limit=int(5e4), alpha=self.alpha)
-        self.batch_size = int(64 / self.nstep)
+        self.batch_size = 64
         self.train_step = 0
 
     def initModels(self):
@@ -134,7 +134,7 @@ class Dqn3(object):
         nStepEnds = []
 
         # NE MARCHE QUE POUR PLAYROOM POUR L'INSTANT
-        idx = np.random.randint(2, self.wrapper.state_dim[0])
+        idx = 2
         v = self.wrapper.vs[idx - 2]
         g = np.zeros(self.wrapper.state_dim)
         l, h = self.wrapper.unwrapped.low[idx], self.wrapper.unwrapped.high[idx]
