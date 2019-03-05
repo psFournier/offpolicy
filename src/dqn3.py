@@ -115,6 +115,8 @@ class Dqn3(object):
             probs = softmax(qvals, theta=self.theta)
         elif self.args['--exp'] == 'egreedy':
             probs = egreedy(qvals, eps=self.eps)
+        elif self.args['--exp'] == 'greedy':
+            probs = egreedy(qvals, eps=0)
         else:
             raise RuntimeError
 
@@ -134,7 +136,7 @@ class Dqn3(object):
         nStepEnds = []
 
         # NE MARCHE QUE POUR PLAYROOM POUR L'INSTANT
-        idx = 2
+        idx = 3
         v = self.wrapper.vs[idx - 2]
         g = np.zeros(self.wrapper.state_dim)
         l, h = self.wrapper.unwrapped.low[idx], self.wrapper.unwrapped.high[idx]
@@ -187,6 +189,8 @@ class Dqn3(object):
             actionProbs = softmax(qValues, axis=1, theta=self.theta)
         elif self.args['--exp'] == 'egreedy':
             actionProbs = egreedy(qValues, eps=self.eps)
+        elif self.args['--exp'] == 'greedy':
+            actionProbs = egreedy(qValues, eps=0)
         else:
             raise RuntimeError
 
@@ -208,17 +212,10 @@ class Dqn3(object):
         for nStepExpe in nStepExpes:
             tdErrors = []
             cs = []
-            qs = []
-
             for expe1, expe2 in zip(nStepExpe[:-1], nStepExpe[1:]):
 
                 s0, a0, g, r, t, mu, o, pis, qt = expe1
-                states.append(s0)
-                actions.append(a0)
-                goals.append(g)
-                origins.append(o)
                 q = qt[a0]
-                qs.append(q)
                 pisNext, qtNext = expe2[-2:]
 
                 ### Calcul des one-step td errors variable selon la méthode
@@ -248,15 +245,78 @@ class Dqn3(object):
                 else:
                     raise RuntimeError
 
-            deltas = []
-            for i in range(len(tdErrors) - 1):
-                deltas.append(np.sum(np.multiply(tdErrors[i+1:], np.cumprod(cs[i+1:]))))
-            deltas.append(0)
-            targets += [q + delta + tdError for q, delta, tdError in zip(qs, deltas, tdErrors)]
-            ros += cs
+            cs[0] = 1
+            s0, a0, g, r, t, mu, o, pis, qt = nStepExpe[0]
+            states.append(s0)
+            actions.append(a0)
+            goals.append(g)
+            origins.append(o)
+            ros.append(np.mean(cs))
+            delta = np.sum(np.multiply(tdErrors, np.cumprod(cs)))
+            targets.append(qt[a0] + delta)
 
         res = [np.array(x) for x in [states, actions, goals, targets, origins, ros]]
         return res
+
+    # def getTargetsSumTD(self, nStepExpes):
+    #     targets = []
+    #     states = []
+    #     actions = []
+    #     goals = []
+    #     origins = []
+    #     ros = []
+    #     for nStepExpe in nStepExpes:
+    #         tdErrors = []
+    #         cs = []
+    #         qs = []
+    #
+    #         for expe1, expe2 in zip(nStepExpe[:-1], nStepExpe[1:]):
+    #
+    #             s0, a0, g, r, t, mu, o, pis, qt = expe1
+    #             states.append(s0)
+    #             actions.append(a0)
+    #             goals.append(g)
+    #             origins.append(o)
+    #             q = qt[a0]
+    #             qs.append(q)
+    #             pisNext, qtNext = expe2[-2:]
+    #
+    #             ### Calcul des one-step td errors variable selon la méthode
+    #             if self.args['--bootstrap'] == 'expectation':
+    #                 b = np.sum(np.multiply(qtNext, pisNext), keepdims=True)
+    #             else:
+    #                 amax = np.argwhere(pisNext == np.max(pisNext)).flatten().tolist()
+    #                 b = qtNext[np.random.choice(amax)]
+    #             b = r + (1 - t) * self._gamma * b
+    #
+    #             if int(self.args['--targetClip']):
+    #                 b = np.clip(b, self.wrapper.rNotTerm / (1 - self._gamma), self.wrapper.rTerm)
+    #
+    #             tdErrors.append((b - q).squeeze())
+    #
+    #             ### Calcul des ratios variable selon la méthode
+    #             if self.args['--IS'] == 'no':
+    #                 cs.append(self._gamma * self._lambda)
+    #             elif self.args['--IS'] == 'standard':
+    #                 ro = pis[a0] / mu
+    #                 cs.append(ro * self._gamma * self._lambda)
+    #             elif self.args['--IS'] == 'retrace':
+    #                 ro = pis[a0] / mu
+    #                 cs.append(min(1, ro) * self._gamma * self._lambda)
+    #             elif self.args['--IS'] == 'tb':
+    #                 cs.append(pis[a0] * self._gamma * self._lambda)
+    #             else:
+    #                 raise RuntimeError
+    #
+    #         deltas = []
+    #         for i in range(len(tdErrors) - 1):
+    #             deltas.append(np.sum(np.multiply(tdErrors[i+1:], np.cumprod(cs[i+1:]))))
+    #         deltas.append(0)
+    #         targets += [q + delta + tdError for q, delta, tdError in zip(qs, deltas, tdErrors)]
+    #         ros += cs
+    #
+    #     res = [np.array(x) for x in [states, actions, goals, targets, origins, ros]]
+    #     return res
 
     def train_dqn(self):
         train_stats = {}

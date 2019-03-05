@@ -71,7 +71,7 @@ if __name__ == '__main__':
         env.seed(seed)
         env_test.seed(seed)
 
-    agent = Dqn(args, wrapper)
+    agent = Dqn3(args, wrapper)
 
 
     stats = {'target_mean': 0,
@@ -83,6 +83,7 @@ if __name__ == '__main__':
     nb_ep_train = 0
     nb_ep_test = 0
     nb_ep = 0
+    t0 = time.time()
 
     # model = load_model('../log/local/3_Rooms1-v0/20190212112608_490218/log_steps/model')
     demo = [int(f) for f in args['--demo'].split(',')]
@@ -90,33 +91,40 @@ if __name__ == '__main__':
     max_episode_steps = int(args['--ep_steps'])
 
     # Put demo data in buffer
-    # state = env_test.reset()
-    # task = np.random.choice([0,1,2])
-    # demo_step = 0
-    # exp = {}
-    # traj = []
-    # while demo_step < 10000:
-    #     a, done = env_test.opt_action(task)
-    #     if done:
-    #         state = env_test.reset()
-    #         task = np.random.choice([0])
-    #         for i, exp in enumerate(reversed(traj)):
-    #             if i == 0:
-    #                 exp['next'] = None
-    #             else:
-    #                 exp['next'] = traj[-i]
-    #             agent.buffer.append(exp)
-    #         traj = []
-    #     else:
-    #         exp['s0'] = state.copy()
-    #         if np.random.rand() < 0.2:
-    #             a = np.random.randint(wrapper_test.action_dim)
-    #         a = np.expand_dims(a, axis=1)
-    #         exp['a0'], exp['origin'] = a, np.expand_dims(1, axis=1)
-    #         state = env_test.step(a, True)[0]
-    #         exp['s1'] = state.copy()
-    #         traj.append(exp.copy())
-    #         demo_step += 1
+    state = env_test.reset()
+    task = np.random.choice([0,1,2])
+    demo_step = 0
+    demo_ep_step = 0
+    exp = {}
+    traj = []
+    while demo_step < 50000:
+        a, done = env_test.opt_action(task)
+        if done or demo_ep_step >= 200:
+            state = env_test.reset()
+            task = np.random.choice([0])
+            for i, exp in enumerate(reversed(traj)):
+                if i == 0:
+                    exp['next'] = None
+                else:
+                    exp['next'] = traj[-i]
+                agent.buffer.append(exp)
+            traj = []
+            demo_ep_step = 0
+        else:
+            exp['s0'] = state.copy()
+            if np.random.rand() < float(args['--rnd_demo']):
+                a = np.random.randint(wrapper_test.action_dim)
+            a = np.expand_dims(a, axis=1)
+            exp['a0'], exp['origin'] = a, np.expand_dims(1, axis=1)
+            state = env_test.step(a, True)[0]
+            exp['s1'] = state.copy()
+            traj.append(exp.copy())
+            demo_step += 1
+            demo_ep_step += 1
+
+    t1 = time.time()
+    print(t1 - t0)
+    t0 = t1
 
     env_step = 1
     episode_step = 0
@@ -125,7 +133,7 @@ if __name__ == '__main__':
     trajectory = []
     state = env.reset()
     exp = wrapper.reset(state)
-    t0 = time.time()
+
     while env_step < int(args['--max_steps']):
 
         a, probs = agent.act(exp)
@@ -144,7 +152,7 @@ if __name__ == '__main__':
         trajectory.append(exp.copy())
         exp['s0'] = state
 
-        if len(agent.buffer) > 10000:
+        if len(agent.buffer) > 0:
             train_stats = agent.train_dqn()
             stats['target_mean'] += train_stats['target_mean']
             stats['train_step'] += 1
@@ -152,7 +160,7 @@ if __name__ == '__main__':
 
         if exp['terminal'] or episode_step >= max_episode_steps:
 
-            if (wrapper.idx - 2) in [0]:
+            if (wrapper.idx - 2) in [0, 1, 2]:
                 nb_ep_train += 1
                 stats['reward_train'] += reward_train
             else:
@@ -160,7 +168,7 @@ if __name__ == '__main__':
                 stats['reward_test'] += reward_test
 
             nb_ep += 1
-            agent.process_trajectory(trajectory)
+            # agent.process_trajectory(trajectory)
             trajectory.clear()
             state = env.reset()
             exp = wrapper.reset(state)
