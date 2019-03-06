@@ -20,16 +20,12 @@ class Obj():
         self.s = 0
 
     @property
-    def state(self):
-        return self.s
-
-    @property
     def high(self):
-        return [len(self.dep)]
+        return len(self.dep)
 
     @property
     def low(self):
-        return [0]
+        return 0
 
 def genDep():
     seen = set()
@@ -69,24 +65,24 @@ class Playroom(Env):
         self.nR = self.desc.shape[0]-1
         self.nC = (self.desc.shape[1]-1)/2
         self.multistart = multistart
-        self.N = 10
-        self.L = 3
-        self.objectDepGen = self.genDep()
+        self.N = 2
+        self.L = 2
+        # self.objectDepGen = self.genDep()
         self.objects = []
         for i in range(self.N):
             self.objects.append(Obj(self,
                                     dep=[POS_LIST[self.L * i + j] for j in range(self.L)]))
         self.initialize()
 
-    def genDep(self):
-        seen = set()
-        x, y = randint(0, self.nR), randint(0, self.nC)
-        while True:
-            seen.add((x, y))
-            yield (x, y)
-            x, y = randint(0, self.nR), randint(0, self.nC)
-            while (x, y) in seen:
-                x, y = randint(0, self.nR), randint(0, self.nC)
+    # def genDep(self):
+    #     seen = set()
+    #     x, y = randint(0, self.nR), randint(0, self.nC)
+    #     while True:
+    #         seen.add((x, y))
+    #         yield (x, y)
+    #         x, y = randint(0, self.nR), randint(0, self.nC)
+    #         while (x, y) in seen:
+    #             x, y = randint(0, self.nR), randint(0, self.nC)
 
     def initialize(self):
         if self.multistart:
@@ -99,7 +95,7 @@ class Playroom(Env):
             obj.s = 0
         self.lastaction = None
 
-    def step(self, a, tutor=False):
+    def step(self, a):
         env_a = a
         if self.lastaction is not None and np.random.rand() < 0.2:
             env_a = self.lastaction
@@ -119,8 +115,8 @@ class Playroom(Env):
 
         elif env_a == Actions.TOUCH:
             for obj in self.objects:
-                if obj.s < obj.high[0] and (self.x, self.y) == obj.dep[obj.s]:
-                    obj.s = np.random.choice([obj.s, obj.s + 1], p=[0, 1])
+                if obj.s < obj.high and (self.x, self.y) == obj.dep[obj.s]:
+                    obj.s += 1
 
         return np.array(self.state), 0, 0, {}
 
@@ -130,27 +126,23 @@ class Playroom(Env):
 
     @property
     def high(self):
-        res = [self.nC - 1, self.nR - 1]
-        for obj in self.objects:
-            res += obj.high
+        res = [self.nC - 1, self.nR - 1] + [obj.high for obj in self.objects]
         return res
 
     def rescale(self, state):
         return [(a - c) / (b - c) for a, b, c in zip(state, self.high, self.low)]
 
     def unscale(self, state):
-        return [a *(b-c) + c for a, b, c in zip(state, self.high, self.low)]
+        return [a * (b - c) + c for a, b, c in zip(state, self.high, self.low)]
 
     @property
     def state(self):
-        res = [self.x, self.y] + [obj.state for obj in self.objects]
+        res = [self.x, self.y] + [obj.s for obj in self.objects]
         return self.rescale(res)
 
     @property
     def low(self):
-        res = [0, 0]
-        for obj in self.objects:
-            res += obj.low
+        res = [0, 0] + [obj.low for obj in self.objects]
         return res
 
     def go(self, x, y):
@@ -179,7 +171,7 @@ class Playroom(Env):
 
     def opt_action(self, t):
         obj = self.objects[t]
-        if obj.state == obj.high:
+        if obj.s == obj.high:
             return -1, True
         else:
             dep = obj.dep[obj.s]
@@ -188,17 +180,34 @@ class Playroom(Env):
 if __name__ == '__main__':
     env = Playroom(multistart=True)
     s = env.reset()
-    task = np.random.choice([1
-                             ])
-    while True:
-        print(s)
-        a, done = env.opt_action(task)
-        if done:
-            break
+    # while True:
+    #     print(s)
+    #     a, done = env.opt_action(task)
+    #     if done:
+    #         break
+    #     else:
+    #         a = np.expand_dims(a, axis=1)
+    #         s = env.step(a, True)[0]
+    step = 0
+    ep_step = 0
+    dones = 0
+    task = 0
+    prop = 0.99
+    while step < 50000:
+        done = (env.objects[task].s == env.objects[task].high)
+        if env.objects[1].s == env.objects[1].high:
+            dones += 1
+        if done or ep_step >= 200:
+            s = env.reset()
+            ep_step = 0
+            task = np.random.choice([0, 1], p=[prop, 1 - prop])
         else:
+            a, _ = env.opt_action(task)
             a = np.expand_dims(a, axis=1)
-            s = env.step(a, True)[0]
-
+            s = env.step(a)[0]
+            ep_step += 1
+            step += 1
+    print(dones)
     # def render(self, mode='human'):
     #     outfile = StringIO() if mode == 'ansi' else sys.stdout
     #

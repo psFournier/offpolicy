@@ -20,10 +20,11 @@ class Base(Wrapper):
         input = [np.expand_dims(i, axis=0) for i in [exp['s0'], exp['goal']]]
         return input
 
-    def get_r(self, exp, r=None, term=None):
-        exp['terminal'] = term
-        exp['reward'] = r
-        return exp
+    def get_r(self, s, g, r=None, term=None):
+        return term, r
+
+    def select_goal_train(self):
+        return np.empty(0)
 
     def process_trajectory(self, trajectory):
         new_trajectory = []

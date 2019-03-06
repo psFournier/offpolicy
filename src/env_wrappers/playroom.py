@@ -15,30 +15,29 @@ class Playroom(Wrapper):
     def reset(self, state):
         exp = {}
         exp['s0'] = state
+        exp['goal'] = self.select_goal_test()
+        return exp
 
+    def select_goal_test(self):
         v = np.zeros(self.state_dim)
-        # self.idx = np.random.randint(2, self.state_dim[0])
         self.idx = 3
         v[self.idx] = 1
-
         g = np.zeros(self.state_dim)
-        l, h = self.env.unwrapped.low[self.idx], self.env.unwrapped.high[self.idx]
-        g[self.idx] = (np.random.randint(l+1, h) - l) / (h -l)
-        # g[idx] = 1
-        exp['goal'] = np.hstack([g, v])
+        g[self.idx] = 1
+        return np.hstack([g, v])
 
-        return exp
+    def select_goal_train(self):
+        return self.select_goal_test()
 
     def make_input(self, exp):
         input = [np.expand_dims(i, axis=0) for i in [exp['s0'], exp['goal']]]
         return input
 
-    def get_r(self, exp, r=None, term=None):
-        s, g = exp['s1'], exp['goal']
+    def get_r(self, s, g, r=None, term=None):
         g, v = np.split(g, self.state_dim, axis=-1)
-        exp['terminal'] = np.linalg.norm(np.multiply(v, s-g), axis=-1) < 0.001
-        exp['reward'] = exp['terminal'] * self.rTerm + (1 - exp['terminal']) * self.rNotTerm
-        return exp
+        t = np.linalg.norm(np.multiply(v, s-g), axis=-1) < 0.001
+        r = t * self.rTerm + (1 - t) * self.rNotTerm
+        return t, r
 
     def process_trajectory(self, trajectory):
         goals = np.expand_dims(trajectory[-1]['goal'], axis=0)
@@ -85,7 +84,7 @@ class Playroom(Wrapper):
                             goals[j] = np.hstack([exp['s1'], v])
             exp['goal'] = goals
 
-            exp = self.get_r(exp)
+            exp['terminal'], exp['reward'] = self.get_r(exp['s1'], exp['goal'])
             new_trajectory.append(exp)
 
         return new_trajectory

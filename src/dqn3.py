@@ -121,7 +121,6 @@ class Dqn3(object):
             raise RuntimeError
 
         action = np.random.choice(range(qvals.shape[0]), p=probs)
-        # action = np.argmax(qvals)
 
         return np.expand_dims(action, axis=1), probs
 
@@ -131,74 +130,82 @@ class Dqn3(object):
             self.buffer.append(exp)
 
     def getNStepSequences(self, exps):
-
         nStepSeqs = []
-        nStepEnds = []
-
-        # NE MARCHE QUE POUR PLAYROOM POUR L'INSTANT
-        idx = 3
-        v = self.wrapper.vs[idx - 2]
-        g = np.zeros(self.wrapper.state_dim)
-        l, h = self.wrapper.unwrapped.low[idx], self.wrapper.unwrapped.high[idx]
-        g[idx] = (np.random.randint(l + 1, h) - l) / (h - l)
-        goal = np.hstack([g, v])
         for exp in exps:
-            exp['goal'] = goal
-            exp = self.wrapper.get_r(exp)
-            nStepSeq = [[exp['s0'],
-                          exp['a0'],
-                          exp['goal'],
-                          exp['reward'],
-                          exp['terminal'],
-                          None,
-                          exp['origin']]]
-
+            nStepSeq = [exp]
             i = 1
-            while i <= self.nstep - 1 and exp['next'] != None and not exp['terminal']:
+            while i <= self.nstep - 1 and exp['next'] != None:
                 exp = exp['next']
-                exp['goal'] = goal
-                exp = self.wrapper.get_r(exp)
-                nStepSeq.append([exp['s0'],
-                             exp['a0'],
-                             exp['goal'],
-                             exp['reward'],
-                             exp['terminal'],
-                             None,
-                             exp['origin']])
+                nStepSeq.append(exp)
                 i += 1
-
-            nStepEnds.append([exp['s1'],
-                              exp['goal']])
+            if self.args['--goal_replay'] != '0':
+                goal = self.wrapper.select_goal_train()
+                for exp in nStepSeq:
+                    exp['goal'] = goal
+                    exp['terminal'], exp['reward'] = self.wrapper.get_r(exp['s1'], goal)
             nStepSeqs.append(nStepSeq)
+        return nStepSeqs
 
-        return nStepSeqs, nStepEnds
+    def getQvaluesAndBootstraps(self, nStepExpes):
 
-    def getQvaluesAndBootstraps(self, nStepExpes, nStepEnds):
+        states, goals = [], []
+        for nStepExpe in nStepExpes:
+            for exp in nStepExpe:
+                states.append(exp['s0'])
+                goals.append(exp['goal'])
+            states.append(nStepExpe[-1]['s1'])
+            goals.append(nStepExpe[-1]['goal'])
+        states = np.array(states)
+        goals = np.array(goals).squeeze(axis=1)
 
-        flatExpes = [expe for nStepExpe in nStepExpes for expe in nStepExpe]
-        states = np.array([expe[0] for expe in flatExpes])
-        goals = np.array([expe[2] for expe in flatExpes])
-
-        endStates = np.array([end[0] for end in nStepEnds])
-        endGoals = np.array([end[1] for end in nStepEnds])
-        input = [np.vstack([states, endStates]), np.vstack([goals, endGoals])]
-        qValues = self.qvals(input)[0]
-        targetQvalues = self.targetqvals(input)[0]
+        qvals = self.qvals([states, goals])[0]
+        target_qvals = self.targetqvals([states, goals])[0]
 
         if self.args['--exp'] == 'softmax':
-            actionProbs = softmax(qValues, axis=1, theta=self.theta)
+            actionProbs = softmax(qvals, axis=1, theta=self.theta)
         elif self.args['--exp'] == 'egreedy':
-            actionProbs = egreedy(qValues, eps=self.eps)
+            actionProbs = egreedy(qvals, eps=self.eps)
         elif self.args['--exp'] == 'greedy':
-            actionProbs = egreedy(qValues, eps=0)
+            actionProbs = egreedy(qvals, eps=0)
         else:
             raise RuntimeError
 
-        for i, expe in enumerate(flatExpes):
-            expe += [actionProbs[i, :], targetQvalues[i, :]]
-
-        for i in range(len(nStepExpes)):
-            nStepExpes[i].append([actionProbs[-self.batch_size + i, :], targetQvalues[-self.batch_size + i, :]])
+        i = 0
+        for nStepExpe in nStepExpes:
+            for exp in nStepExpe:
+                exp['q'] = qvals[i]
+                exp['tq'] = target_qvals[i]
+                exp['pi'] = actionProbs[i]
+                i += 1
+            end = {'q': qvals[i], 'tq': target_qvals[i], 'pi': actionProbs[i]}
+            nStepExpe.append(end)
+            i += 1
+        # for i, expe in enumerate(flatExpes):
+        #     expe += [actionProbs[i, :], targetQvalues[i, :]]
+        #
+        # states = np.array([expe[0] for expe in flatExpes])
+        # goals = np.array([expe[3] for expe in flatExpes])
+        #
+        # endStates = np.array([end[0] for end in nStepEnds])
+        # endGoals = np.array([end[1] for end in nStepEnds])
+        # input = [np.vstack([states, endStates]), np.vstack([goals, endGoals])]
+        # qValues = self.qvals(input)[0]
+        # targetQvalues = self.targetqvals(input)[0]
+        #
+        # if self.args['--exp'] == 'softmax':
+        #     actionProbs = softmax(qValues, axis=1, theta=self.theta)
+        # elif self.args['--exp'] == 'egreedy':
+        #     actionProbs = egreedy(qValues, eps=self.eps)
+        # elif self.args['--exp'] == 'greedy':
+        #     actionProbs = egreedy(qValues, eps=0)
+        # else:
+        #     raise RuntimeError
+        #
+        # for i, expe in enumerate(flatExpes):
+        #     expe += [actionProbs[i, :], targetQvalues[i, :]]
+        #
+        # for i in range(len(nStepExpes)):
+        #     nStepExpes[i].append([actionProbs[-self.batch_size + i, :], targetQvalues[-self.batch_size + i, :]])
 
         return nStepExpes
 
@@ -212,48 +219,44 @@ class Dqn3(object):
         for nStepExpe in nStepExpes:
             tdErrors = []
             cs = []
-            for expe1, expe2 in zip(nStepExpe[:-1], nStepExpe[1:]):
-
-                s0, a0, g, r, t, mu, o, pis, qt = expe1
-                q = qt[a0]
-                pisNext, qtNext = expe2[-2:]
+            for exp0, exp1 in zip(nStepExpe[:-1], nStepExpe[1:]):
 
                 ### Calcul des one-step td errors variable selon la méthode
                 if self.args['--bootstrap'] == 'expectation':
-                    b = np.sum(np.multiply(qtNext, pisNext), keepdims=True)
+                    b = np.sum(np.multiply(exp1['pi'], exp1['tq']), keepdims=True)
                 else:
-                    amax = np.argwhere(pisNext == np.max(pisNext)).flatten().tolist()
-                    b = qtNext[np.random.choice(amax)]
-                b = r + (1 - t) * self._gamma * b
+                    amax = np.argwhere(exp1['pi'] == np.max(exp1['pi'])).flatten().tolist()
+                    b = exp1['tq'][np.random.choice(amax)]
+                b = exp0['reward'] + (1 - exp0['terminal']) * self._gamma * b
 
                 if int(self.args['--targetClip']):
                     b = np.clip(b, self.wrapper.rNotTerm / (1 - self._gamma), self.wrapper.rTerm)
 
-                tdErrors.append((b - q).squeeze())
+                tdErrors.append((b - exp0['q'][exp0['a0']]).squeeze())
 
                 ### Calcul des ratios variable selon la méthode
                 if self.args['--IS'] == 'no':
                     cs.append(self._gamma * self._lambda)
                 elif self.args['--IS'] == 'standard':
-                    ro = pis[a0] / mu
+                    ro = exp0['pi'][exp0['a0']] / exp0['mu0']
                     cs.append(ro * self._gamma * self._lambda)
                 elif self.args['--IS'] == 'retrace':
-                    ro = pis[a0] / mu
+                    ro = exp0['pi'][exp0['a0']] / exp0['mu0']
                     cs.append(min(1, ro) * self._gamma * self._lambda)
                 elif self.args['--IS'] == 'tb':
-                    cs.append(pis[a0] * self._gamma * self._lambda)
+                    cs.append(exp0['pi'][exp0['a0']] * self._gamma * self._lambda)
                 else:
                     raise RuntimeError
 
             cs[0] = 1
-            s0, a0, g, r, t, mu, o, pis, qt = nStepExpe[0]
-            states.append(s0)
-            actions.append(a0)
-            goals.append(g)
-            origins.append(o)
+            exp = nStepExpe[0]
+            states.append(exp['s0'])
+            actions.append(exp['a0'])
+            goals.append(exp['goal'])
+            origins.append(exp['origin'])
             ros.append(np.mean(cs))
             delta = np.sum(np.multiply(tdErrors, np.cumprod(cs)))
-            targets.append(qt[a0] + delta)
+            targets.append(exp['q'][exp['a0']] + delta)
 
         res = [np.array(x) for x in [states, actions, goals, targets, origins, ros]]
         return res
@@ -324,12 +327,12 @@ class Dqn3(object):
         # names = ['s0', 'a0', 's1', 'goal', 'origin', 'term', 'next', 'reached', 'p0', 'weights']
         # if self.alpha != 0:
         #     names.append('indices')
-        nStepExpes, nStepEnds = self.getNStepSequences(exps)
-        nStepExpes = self.getQvaluesAndBootstraps(nStepExpes, nStepEnds)
+        nStepExpes = self.getNStepSequences(exps)
+        nStepExpes = self.getQvaluesAndBootstraps(nStepExpes)
         states, actions, goals, targets, origins, ros = self.getTargetsSumTD(nStepExpes)
         train_stats['target_mean'] = np.mean(targets)
         train_stats['ro'] = np.mean(ros)
-        inputs = [states, actions, goals, targets, origins, np.ones_like(targets)]
+        inputs = [states, actions, goals.squeeze(), targets, origins, np.ones_like(targets)]
         loss, qval, td_errors, imit_loss = self.train(inputs)
         self.train_step += 1
         if self.train_step % 1000 == 0:
