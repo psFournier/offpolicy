@@ -21,6 +21,8 @@ class Dqn3(object):
         self.a_dim = (1,)
         self._gamma = 0.99
         self._lambda = float(args['--lambda'])
+        self.theta_act = float(self.args['--theta_act'])
+        self.theta_learn = float(self.args['--theta_learn'])
         self.margin = float(args['--margin'])
         self.layers = [int(l) for l in args['--layers'].split(',')]
         self.nstep = int(args['--nstep'])
@@ -107,21 +109,10 @@ class Dqn3(object):
         return Q_values
 
     def act(self, exp):
-
         input = self.wrapper.make_input(exp)
         qvals = self.qvals(input)[0].squeeze()
-
-        if self.args['--exp'] == 'softmax':
-            probs = softmax(qvals, theta=self.theta)
-        elif self.args['--exp'] == 'egreedy':
-            probs = egreedy(qvals, eps=self.eps)
-        elif self.args['--exp'] == 'greedy':
-            probs = egreedy(qvals, eps=0)
-        else:
-            raise RuntimeError
-
+        probs = softmax(qvals, theta=self.theta_act)
         action = np.random.choice(range(qvals.shape[0]), p=probs)
-
         return np.expand_dims(action, axis=1), probs
 
     def process_trajectory(self, trajectory):
@@ -160,15 +151,7 @@ class Dqn3(object):
 
         qvals = self.qvals([states, goals])[0]
         target_qvals = self.targetqvals([states, goals])[0]
-
-        if self.args['--exp'] == 'softmax':
-            actionProbs = softmax(qvals, axis=1, theta=self.theta)
-        elif self.args['--exp'] == 'egreedy':
-            actionProbs = egreedy(qvals, eps=self.eps)
-        elif self.args['--exp'] == 'greedy':
-            actionProbs = egreedy(qvals, eps=0)
-        else:
-            raise RuntimeError
+        actionProbs = softmax(qvals, axis=1, theta=self.theta_learn)
 
         i = 0
         for nStepExpe in nStepExpes:
@@ -221,17 +204,10 @@ class Dqn3(object):
             cs = []
             for exp0, exp1 in zip(nStepExpe[:-1], nStepExpe[1:]):
 
-                ### Calcul des one-step td errors variable selon la méthode
-                if self.args['--bootstrap'] == 'expectation':
-                    b = np.sum(np.multiply(exp1['pi'], exp1['tq']), keepdims=True)
-                else:
-                    amax = np.argwhere(exp1['pi'] == np.max(exp1['pi'])).flatten().tolist()
-                    b = exp1['tq'][np.random.choice(amax)]
+                b = np.sum(np.multiply(exp1['pi'], exp1['tq']), keepdims=True)
                 b = exp0['reward'] + (1 - exp0['terminal']) * self._gamma * b
-
                 if int(self.args['--targetClip']):
                     b = np.clip(b, self.wrapper.rNotTerm / (1 - self._gamma), self.wrapper.rTerm)
-
                 tdErrors.append((b - exp0['q'][exp0['a0']]).squeeze())
 
                 ### Calcul des ratios variable selon la méthode
@@ -339,14 +315,10 @@ class Dqn3(object):
             self.target_train()
         return train_stats
 
-    @property
-    def theta(self):
-        return 1
-
-    @property
-    def eps(self):
-        if self.train_step < 1e4:
-            eps = 1 + ((0.1 - 1) / 1e4) * self.train_step
-        else:
-            eps = 0.1
-        return eps
+    # @property
+    # def eps(self):
+    #     if self.train_step < 1e4:
+    #         eps = 1 + ((0.1 - 1) / 1e4) * self.train_step
+    #     else:
+    #         eps = 0.1
+    #     return eps

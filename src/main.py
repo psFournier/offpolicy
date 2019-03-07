@@ -44,10 +44,10 @@ Options:
   --nstep VAL              [default: 1]
   --alpha VAL              [default: 0]
   --IS VAL                 [default: no]
-  --exp VAL                [default: softmax]
   --targetClip VAL         [default: 0]
   --lambda VAL             [default: 0]
-  --bootstrap VAL          [default: expectation]
+  --theta_act VAL          [default: 1]
+  --theta_learn VAL        [default: 1]
   --goal_replay VAL        [default: 0]
 """
 
