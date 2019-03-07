@@ -39,6 +39,14 @@ register(
     wrapper_entry_point='env_wrappers.base:Base'
 )
 
+for s in [1, 2, 4]:
+    register(
+        id='PlayroomRewardSparse{}-v0'.format(s),
+        entry_point='envs:PlayroomReward',
+        kwargs={'sparsity': s},
+        wrapper_entry_point='env_wrappers.playroomReward:PlayroomReward'
+    )
+
 # register(
 #     id='Rooms2-v0',
 #     entry_point='envs:Rooms2',

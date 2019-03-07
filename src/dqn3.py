@@ -21,8 +21,8 @@ class Dqn3(object):
         self.a_dim = (1,)
         self._gamma = 0.99
         self._lambda = float(args['--lambda'])
-        self.theta_act = float(self.args['--theta_act'])
-        self.theta_learn = float(self.args['--theta_learn'])
+        self.theta_act = float(args['--theta_act'])
+        self.theta_learn = float(args['--theta_learn'])
         self.margin = float(args['--margin'])
         self.layers = [int(l) for l in args['--layers'].split(',')]
         self.nstep = int(args['--nstep'])
