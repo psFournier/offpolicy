@@ -7,7 +7,7 @@ class Actions:
     DOWN = 1
     LEFT = 2
     RIGHT = 3
-    TOUCH = 4
+    # TOUCH = 4
 
 
 class Obj():
@@ -62,13 +62,13 @@ class PlayroomReward(Env):
         self.nR = self.desc.shape[0]-1
         self.nC = (self.desc.shape[1]-1)/2
         self.multistart = multistart
-        self.N = 25
-        self.L = 4
+        self.N = 5
+        self.L = 20
         self.objects = []
         for i in range(self.N):
             self.objects.append(Obj(self,
-                                    dep=[POS_LIST[self.L * i + j] for j in range(self.L)],
-                                    rewards=[REWARDS[self.L * i + j] for j in range(self.L)]))
+                                    dep=[POS_LIST[(100//self.N) * i + j] for j in range(self.L)],
+                                    rewards=[REWARDS[(100//self.N) * i + j] for j in range(self.L)]))
         self.sparsity = sparsity
         self.initialize()
 
@@ -111,12 +111,12 @@ class PlayroomReward(Env):
         if env_a == Actions.LEFT and self.desc[1 + self.x, 2 * self.y] == b" ":
             self.y = max(self.y - 1, 0)
 
-        elif env_a == Actions.TOUCH:
-            for obj in self.objects:
-                if obj.s < obj.high and (self.x, self.y) == obj.dep[obj.s]:
-                    obj.s += 1
-                    if obj.s % self.sparsity == 0:
-                        r += obj.rewards[obj.s - 1]
+        # elif env_a == Actions.TOUCH:
+        for obj in self.objects:
+            if (self.x, self.y) == obj.dep[obj.s] and obj.s < obj.high:
+                obj.s += 1
+                if obj.s % self.sparsity == 0:
+                    r += self.sparsity*obj.rewards[obj.s - 1]
 
         return np.array(self.state), r, 0, {}
 
@@ -162,12 +162,12 @@ class PlayroomReward(Env):
         else:
             return None
 
-    def touch(self, x, y):
-        a = self.go(x, y)
-        if a is None:
-            return Actions.TOUCH, False
-        else:
-            return a, False
+    # def touch(self, x, y):
+    #     a = self.go(x, y)
+    #     if a is None:
+    #         return Actions.TOUCH, False
+    #     else:
+    #         return a, False
 
     def opt_action(self, t):
         obj = self.objects[t]
@@ -175,43 +175,43 @@ class PlayroomReward(Env):
             return -1, True
         else:
             dep = obj.dep[obj.s]
-            return self.touch(dep[0], dep[1])
+            return self.go(dep[0], dep[1]), False
 
 if __name__ == '__main__':
-    env = PlayroomReward(multistart=True, sparsity=4)
-    # for task in range(25):
-    #     s = env.reset()
-    #     sumr = 0
-    #     while True:
-    #         a, done = env.opt_action(task)
-    #         if done:
-    #             break
-    #         else:
-    #             a = np.expand_dims(a, axis=1)
-    #             s, r, t, _ = env.step(a)
-    #             sumr += r
-    #     print(sumr)
-    s = env.reset()
-    step = 0
-    ep_step = 0
-    # task = 0
-    prop = 0.99
-    sumr = 0
-    while step < 50000:
-        # done = (env.objects[task].s == env.objects[task].high)
-        if ep_step >= 200:
-            print(sumr)
-            s = env.reset()
-            ep_step = 0
-            # task = np.random.choice([0, 1], p=[prop, 1 - prop])
-        else:
-            # a, _ = env.opt_action(task)
-            a = np.random.randint(5)
-            a = np.expand_dims(a, axis=1)
-            s, r, _, _ = env.step(a)
-            sumr += np.abs(r)
-            ep_step += 1
-            step += 1
+    env = PlayroomReward(multistart=True, sparsity=10)
+    for task in range(25):
+        s = env.reset()
+        sumr = 0
+        while True:
+            a, done = env.opt_action(task)
+            if done:
+                break
+            else:
+                a = np.expand_dims(a, axis=1)
+                s, r, t, _ = env.step(a)
+                sumr += r
+        print(sumr)
+    # s = env.reset()
+    # step = 0
+    # ep_step = 0
+    # # task = 0
+    # prop = 0.99
+    # sumr = 0
+    # while step < 50000:
+    #     # done = (env.objects[task].s == env.objects[task].high)
+    #     if ep_step >= 200:
+    #         print(sumr)
+    #         s = env.reset()
+    #         ep_step = 0
+    #         # task = np.random.choice([0, 1], p=[prop, 1 - prop])
+    #     else:
+    #         # a, _ = env.opt_action(task)
+    #         a = np.random.randint(5)
+    #         a = np.expand_dims(a, axis=1)
+    #         s, r, _, _ = env.step(a)
+    #         sumr += np.abs(r)
+    #         ep_step += 1
+    #         step += 1
     # def render(self, mode='human'):
     #     outfile = StringIO() if mode == 'ansi' else sys.stdout
     #

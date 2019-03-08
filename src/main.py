@@ -49,6 +49,7 @@ Options:
   --theta_act VAL          [default: 1]
   --theta_learn VAL        [default: 1]
   --goal_replay VAL        [default: 0]
+  --dueling VAL            [default: 0]
 """
 
 if __name__ == '__main__':

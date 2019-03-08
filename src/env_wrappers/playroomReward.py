@@ -42,7 +42,7 @@ class PlayroomReward(Wrapper):
 
     @property
     def state_dim(self):
-        return 27,
+        return 2+self.env.N,
 
     @property
     def goal_dim(self):
@@ -50,4 +50,4 @@ class PlayroomReward(Wrapper):
 
     @property
     def action_dim(self):
-        return 5
+        return 4

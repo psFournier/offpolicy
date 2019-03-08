@@ -68,7 +68,8 @@ class Dqn3(object):
         ### Large margin loss
         # qvalWidth = K.max(qvals, axis=1, keepdims=True) - K.min(qvals, axis=1, keepdims=True)
         onehot = 1 - K.squeeze(K.one_hot(A, self.num_actions), axis=1)
-        imit_loss = (K.max(qvals + self.margin * onehot, axis=1, keepdims=True) - qval) * O
+        # For now NO IMITATION
+        imit_loss = (K.max(qvals + self.margin * onehot, axis=1, keepdims=True) - qval) * 0
 
         loss = K.dot(K.transpose(W), l2_loss + imit_loss) / K.sum(W, axis=0)
         inputs = [S, A, G, TARGETS, O, W]
@@ -97,15 +98,24 @@ class Dqn3(object):
         h = concatenate([S, G])
         for l in self.layers:
             h = Dense(l, activation="relu",
-                      kernel_initializer=lecun_uniform(),
-                      kernel_regularizer=l2(0.01))(h)
-        ValAndAdv = Dense(self.num_actions + 1,
-                         activation='linear',
-                         kernel_initializer=RandomUniform(minval=-3e-4, maxval=3e-4),
-                         kernel_regularizer=l2(0.01),
-                         bias_initializer=RandomUniform(minval=-3e-4, maxval=3e-4))(h)
-        Q_values = Lambda(lambda a: K.expand_dims(a[:, 0], axis=-1) + a[:, 1:] - K.mean(a[:, 1:], keepdims=True, axis=1),
-                   output_shape=(self.num_actions,))(ValAndAdv)
+                      kernel_initializer=lecun_uniform()
+                      )(h)
+
+        if self.args['--dueling'] == '1':
+            ValAndAdv = Dense(self.num_actions + 1,
+                             activation='linear',
+                             kernel_initializer=RandomUniform(minval=-3e-4, maxval=3e-4),
+                             bias_initializer=RandomUniform(minval=-3e-4, maxval=3e-4)
+                              )(h)
+            Q_values = Lambda(lambda a: K.expand_dims(a[:, 0], axis=-1) + a[:, 1:] - K.mean(a[:, 1:], keepdims=True, axis=1),
+                       output_shape=(self.num_actions,))(ValAndAdv)
+
+        else:
+            Q_values = Dense(self.num_actions,
+                             activation='linear',
+                             kernel_initializer=RandomUniform(minval=-3e-4, maxval=3e-4),
+                             bias_initializer=RandomUniform(minval=-3e-4, maxval=3e-4)
+                             )(h)
         return Q_values
 
     def act(self, exp):
