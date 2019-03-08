@@ -46,8 +46,7 @@ Options:
   --IS VAL                 [default: no]
   --targetClip VAL         [default: 0]
   --lambda VAL             [default: 0]
-  --theta_act VAL          [default: 1]
-  --theta_learn VAL        [default: 1]
+  --theta_learn VAL        [default: 10]
   --goal_replay VAL        [default: 0]
   --dueling VAL            [default: 0]
 """
@@ -133,7 +132,7 @@ if __name__ == '__main__':
 
     while env_step < int(args['--max_steps']):
 
-        a, probs = agent.act(exp)
+        a, probs = agent.act(exp, theta=max(0, 100*(env_step - 1e4) / 9e4))
         exp['a0'], exp['mu0'], exp['origin'] = a, probs[a], np.expand_dims(0, axis=1)
         state, r, term, info = env.step(a.squeeze())
         exp['s1'] = state.copy()

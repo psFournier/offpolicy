@@ -178,10 +178,11 @@ class PlayroomReward(Env):
             return self.go(dep[0], dep[1]), False
 
 if __name__ == '__main__':
-    env = PlayroomReward(multistart=True, sparsity=10)
+    env = PlayroomReward(multistart=True, sparsity=1)
     for task in range(25):
         s = env.reset()
         sumr = 0
+        i = 0
         while True:
             a, done = env.opt_action(task)
             if done:
@@ -190,7 +191,9 @@ if __name__ == '__main__':
                 a = np.expand_dims(a, axis=1)
                 s, r, t, _ = env.step(a)
                 sumr += r
+                i += 1
         print(sumr)
+        print(i)
     # s = env.reset()
     # step = 0
     # ep_step = 0

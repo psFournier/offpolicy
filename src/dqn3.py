@@ -21,7 +21,6 @@ class Dqn3(object):
         self.a_dim = (1,)
         self._gamma = 0.99
         self._lambda = float(args['--lambda'])
-        self.theta_act = float(args['--theta_act'])
         self.theta_learn = float(args['--theta_learn'])
         self.margin = float(args['--margin'])
         self.layers = [int(l) for l in args['--layers'].split(',')]
@@ -118,10 +117,10 @@ class Dqn3(object):
                              )(h)
         return Q_values
 
-    def act(self, exp):
+    def act(self, exp, theta=1):
         input = self.wrapper.make_input(exp)
         qvals = self.qvals(input)[0].squeeze()
-        probs = softmax(qvals, theta=self.theta_act)
+        probs = softmax(qvals, theta=theta)
         action = np.random.choice(range(qvals.shape[0]), p=probs)
         return np.expand_dims(action, axis=1), probs
 
