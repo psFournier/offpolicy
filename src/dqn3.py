@@ -93,43 +93,43 @@ class Dqn3(object):
     def target_train(self):
         self.targetmodel.set_weights(self.model.get_weights())
 
-    def create_critic_network(self, S, G):
-        h = Conv2D(16, kernel_size=3, strides=1)(S)
-        h = Flatten()(h)
-        h = Dense(128, activation="relu",
-                      kernel_initializer=lecun_uniform()
-                      )(h)
-        Q_values = Dense(self.num_actions,
-                             activation='linear',
-                             kernel_initializer=RandomUniform(minval=-3e-4, maxval=3e-4),
-                             bias_initializer=RandomUniform(minval=-3e-4, maxval=3e-4)
-                             )(h)
-        return Q_values
-
-
     # def create_critic_network(self, S, G):
-    #     h = concatenate([S, G])
-    #     for l in self.layers:
-    #         h = Dense(l, activation="relu",
+    #     h = Conv2D(16, kernel_size=3, strides=1)(S)
+    #     h = Flatten()(h)
+    #     h = Dense(128, activation="relu",
     #                   kernel_initializer=lecun_uniform()
     #                   )(h)
-    #
-    #     if self.args['--dueling'] == '1':
-    #         ValAndAdv = Dense(self.num_actions + 1,
-    #                          activation='linear',
-    #                          kernel_initializer=RandomUniform(minval=-3e-4, maxval=3e-4),
-    #                          bias_initializer=RandomUniform(minval=-3e-4, maxval=3e-4)
-    #                           )(h)
-    #         Q_values = Lambda(lambda a: K.expand_dims(a[:, 0], axis=-1) + a[:, 1:] - K.mean(a[:, 1:], keepdims=True, axis=1),
-    #                    output_shape=(self.num_actions,))(ValAndAdv)
-    #
-    #     else:
-    #         Q_values = Dense(self.num_actions,
+    #     Q_values = Dense(self.num_actions,
     #                          activation='linear',
     #                          kernel_initializer=RandomUniform(minval=-3e-4, maxval=3e-4),
     #                          bias_initializer=RandomUniform(minval=-3e-4, maxval=3e-4)
     #                          )(h)
     #     return Q_values
+
+
+    def create_critic_network(self, S, G):
+        h = concatenate([S, G])
+        for l in self.layers:
+            h = Dense(l, activation="relu",
+                      kernel_initializer=lecun_uniform()
+                      )(h)
+
+        if self.args['--dueling'] == '1':
+            ValAndAdv = Dense(self.num_actions + 1,
+                             activation='linear',
+                             kernel_initializer=RandomUniform(minval=-3e-4, maxval=3e-4),
+                             bias_initializer=RandomUniform(minval=-3e-4, maxval=3e-4)
+                              )(h)
+            Q_values = Lambda(lambda a: K.expand_dims(a[:, 0], axis=-1) + a[:, 1:] - K.mean(a[:, 1:], keepdims=True, axis=1),
+                       output_shape=(self.num_actions,))(ValAndAdv)
+
+        else:
+            Q_values = Dense(self.num_actions,
+                             activation='linear',
+                             kernel_initializer=RandomUniform(minval=-3e-4, maxval=3e-4),
+                             bias_initializer=RandomUniform(minval=-3e-4, maxval=3e-4)
+                             )(h)
+        return Q_values
 
     def act(self, exp, theta=1):
         input = self.wrapper.make_input(exp)
