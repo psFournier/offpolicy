@@ -18,7 +18,7 @@ def quant_inf(x):
 def quant_sup(x):
     return x.quantile(0.75)
 
-dirs = ['0803']
+dirs = ['0903']
 df = pd.concat([pd.read_pickle('../log/cluster/{}/*-v0.pkl'.format(d)) for d in dirs], ignore_index=True)
 
 x = ['step']
@@ -47,7 +47,7 @@ params = ['--agent',
           '--nstep',
           '--alpha',
           '--IS',
-          '--theta_act',
+          # '--theta_act',
           '--lambda',
           '--theta_learn'
           ]
@@ -77,14 +77,14 @@ p1 = [p for p in params if len(df1[p].unique()) > 1]
 # p1 = 'num_run'
 
 for j, (name, g) in enumerate(df1.groupby(p1)):
-    # axes[0, 0].plot(g['step'], g[y]['median'], label=name)
-    # axes[0, 0].fill_between(g['step'],
-    #                        g[y]['quant_inf'],
-    #                        g[y]['quant_sup'], alpha=0.25, linewidth=0)
-    axes[0, 0].plot(g['step'], g[y]['mean'], label=name)
+    axes[0, 0].plot(g['step'], g[y]['median'], label=name)
     axes[0, 0].fill_between(g['step'],
-                            g[y]['mean'] - 0.5 * g[y]['std'],
-                            g[y]['mean'] + 0.5 * g[y]['std'], alpha=0.25, linewidth=0)
+                           g[y]['quant_inf'],
+                           g[y]['quant_sup'], alpha=0.25, linewidth=0)
+    # axes[0, 0].plot(g['step'], g[y]['mean'], label=name)
+    # axes[0, 0].fill_between(g['step'],
+    #                         g[y]['mean'] - 0.5 * g[y]['std'],
+    #                         g[y]['mean'] + 0.5 * g[y]['std'], alpha=0.25, linewidth=0)
     # axes[0, 0].scatter(g['step'], g[y], label=name)
 axes[0, 0].legend()
 # axes[0, 0].set_xlim([0,100000])

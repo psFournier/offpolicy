@@ -47,6 +47,12 @@ for s in [1, 2, 4]:
         wrapper_entry_point='env_wrappers.playroomReward:PlayroomReward'
     )
 
+register(
+    id='MiniBreakout-v0',
+    entry_point='envs:MiniBreakout',
+    wrapper_entry_point='env_wrappers.miniBreakout:MiniBreakout'
+)
+
 # register(
 #     id='Rooms2-v0',
 #     entry_point='envs:Rooms2',
