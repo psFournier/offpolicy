@@ -30,7 +30,7 @@ class Obj():
 class PlayroomBig(Env):
     metadata = {'render.modes': ['human', 'ansi']}
 
-    def __init__(self, multistart=True, size=20, N=4, L=5):
+    def __init__(self, multistart=True, size=10, N=4, L=5):
         self.size = size
         self.multistart = multistart
         self.N = N

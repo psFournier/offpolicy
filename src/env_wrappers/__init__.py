@@ -32,7 +32,7 @@ register(
     wrapper_entry_point='env_wrappers.playroom:Playroom'
 )
 
-for N in [4, 16, 64]:
+for N in [1, 2, 4, 8, 16, 32, 64]:
     register(
         id='PlayroomBig{}-v0'.format(N),
         entry_point='envs:PlayroomBig',

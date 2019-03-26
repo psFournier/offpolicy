@@ -6,7 +6,7 @@ from keras.optimizers import Adam
 import keras.backend as K
 from keras.layers.merge import concatenate, multiply, add, subtract, maximum, Dot
 import numpy as np
-from prioritizedReplayBuffer import ReplayBuffer, PrioritizedReplayBuffer
+from prioritizedReplayBuffer import ReplayBuffer
 
 from keras.losses import mse
 import tensorflow as tf
@@ -31,11 +31,7 @@ class Dqn3(object):
         self.initModels()
         self.initTargetModels()
 
-        self.alpha = float(args['--alpha'])
-        if self.alpha == 0:
-            self.buffer = ReplayBuffer(limit=int(5e4))
-        else:
-            self.buffer = PrioritizedReplayBuffer(limit=int(5e4), alpha=self.alpha)
+        self.buffer = ReplayBuffer(limit=int(5e4), N=self.wrapper.N)
         self.batch_size = 64
         self.train_step = 0
 
@@ -132,11 +128,11 @@ class Dqn3(object):
         return Q_values
 
     def act(self, exp, theta=1):
-        input = self.wrapper.make_input(exp)
+        input = [np.expand_dims(i, axis=0) for i in [exp['s0'], exp['rParams']]]
         qvals = self.qvals(input)[0].squeeze()
         probs = softmax(qvals, theta=theta)
         action = np.random.choice(range(qvals.shape[0]), p=probs)
-        return np.expand_dims(action, axis=1), probs
+        return action, probs
 
     def process_trajectory(self, trajectory):
         trajectory = self.wrapper.process_trajectory(trajectory)
@@ -152,28 +148,28 @@ class Dqn3(object):
                 exp = exp['next']
                 nStepSeq.append(exp)
                 i += 1
-            if self.args['--goal_replay'] != '0':
-                goal = self.wrapper.select_goal_train()
-                for exp in nStepSeq:
-                    exp['goal'] = goal
-                    exp['terminal'], exp['reward'] = self.wrapper.get_r(exp['s1'], goal)
+            # if self.args['--goal_replay'] != '0':
+            #     goal = self.wrapper.select_goal_train()
+            #     for exp in nStepSeq:
+            #         exp['goal'] = goal
+            #         exp['terminal'], exp['reward'] = self.wrapper.get_r(exp['s1'], goal)
             nStepSeqs.append(nStepSeq)
         return nStepSeqs
 
     def getQvaluesAndBootstraps(self, nStepExpes):
 
-        states, goals = [], []
+        states, rParams = [], []
         for nStepExpe in nStepExpes:
             for exp in nStepExpe:
                 states.append(exp['s0'])
-                goals.append(exp['goal'])
+                rParams.append(exp['rParams'])
             states.append(nStepExpe[-1]['s1'])
-            goals.append(nStepExpe[-1]['goal'])
+            rParams.append(nStepExpe[-1]['rParams'])
         states = np.array(states)
-        goals = np.array(goals).squeeze(axis=1)
+        rParams = np.array(rParams).squeeze(axis=1)
 
-        qvals = self.qvals([states, goals])[0]
-        target_qvals = self.targetqvals([states, goals])[0]
+        qvals = self.qvals([states, rParams])[0]
+        target_qvals = self.targetqvals([states, rParams])[0]
         actionProbs = softmax(qvals, axis=1, theta=self.theta_learn)
 
         i = 0
@@ -219,7 +215,7 @@ class Dqn3(object):
         targets = []
         states = []
         actions = []
-        goals = []
+        rParams = []
         origins = []
         ros = []
         for nStepExpe in nStepExpes:
@@ -251,13 +247,13 @@ class Dqn3(object):
             exp = nStepExpe[0]
             states.append(exp['s0'])
             actions.append(exp['a0'])
-            goals.append(exp['goal'])
+            rParams.append(exp['rParams'])
             origins.append(exp['origin'])
             ros.append(np.mean(cs))
             delta = np.sum(np.multiply(tdErrors, np.cumprod(cs)))
             targets.append(exp['q'][exp['a0']] + delta)
 
-        res = [np.array(x) for x in [states, actions, goals, targets, origins, ros]]
+        res = [np.array(x) for x in [states, actions, rParams, targets, origins, ros]]
         return res
 
     # def getTargetsSumTD(self, nStepExpes):
@@ -320,18 +316,15 @@ class Dqn3(object):
     #     res = [np.array(x) for x in [states, actions, goals, targets, origins, ros]]
     #     return res
 
-    def train_dqn(self):
+    def train_dqn(self, batchsize):
         train_stats = {}
-        exps = self.buffer.sample(self.batch_size)
-        # names = ['s0', 'a0', 's1', 'goal', 'origin', 'term', 'next', 'reached', 'p0', 'weights']
-        # if self.alpha != 0:
-        #     names.append('indices')
+        exps = self.buffer.sample(batchsize)
         nStepExpes = self.getNStepSequences(exps)
         nStepExpes = self.getQvaluesAndBootstraps(nStepExpes)
-        states, actions, goals, targets, origins, ros = self.getTargetsSumTD(nStepExpes)
+        states, actions, rParams, targets, origins, ros = self.getTargetsSumTD(nStepExpes)
         train_stats['target_mean'] = np.mean(targets)
         train_stats['ro'] = np.mean(ros)
-        inputs = [states, actions, goals.squeeze(), targets, origins, np.ones_like(targets)]
+        inputs = [states, actions, rParams.squeeze(), targets, origins, np.ones_like(targets)]
         loss, qval, td_errors, imit_loss = self.train(inputs)
         self.train_step += 1
         if self.train_step % 1000 == 0:

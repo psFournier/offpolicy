@@ -6,7 +6,7 @@ from keras.optimizers import Adam
 import keras.backend as K
 from keras.layers.merge import concatenate, multiply, add, subtract, maximum, Dot
 import numpy as np
-from prioritizedReplayBuffer import ReplayBuffer, PrioritizedReplayBuffer
+from prioritizedReplayBuffer import ReplayBuffer
 
 from keras.losses import mse
 import tensorflow as tf

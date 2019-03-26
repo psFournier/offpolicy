@@ -8,41 +8,56 @@ class Playroom(Wrapper):
         self.rNotTerm = -1 + (self.gamma - 1) * float(args['--initq'])
         self.rTerm = 0 - float(args['--initq'])
         self.her = float(args['--her']) * int(args['--ep_steps'])
-        vs = np.zeros(shape=(self.state_dim[0] - 2, self.state_dim[0]))
-        vs[np.arange(self.state_dim[0] - 2), range(2, self.state_dim[0])] = 1
-        self.vs = vs / np.sum(vs, axis=1, keepdims=True)
+        self.N = len(self.env.objects)
 
     def reset(self, state):
         exp = {}
         exp['s0'] = state
-        exp['goal'] = self.select_goal_test()
+        exp['rParams'] = self.get_rParams()
         return exp
 
-    def select_goal_test(self):
-        v = np.zeros(self.state_dim)
-        self.idx = 3
-        v[self.idx] = 1
-        g = np.zeros(self.state_dim)
-        g[self.idx] = 1
-        return np.hstack([g, v])
+    def get_rParams(self):
+        theta1 = np.random.uniform(size=self.N)
+        theta1 /= sum(theta1)
+        theta2 = np.random.randint(1, self.env.L + 1, size=self.N) / self.env.L
+        return np.hstack([theta1, theta2])
 
-    def select_goal_train(self):
-        return self.select_goal_test()
-
-    def make_input(self, exp):
-        input = [np.expand_dims(i, axis=0) for i in [exp['s0'], exp['goal']]]
-        return input
-
-    def get_r(self, s, g, r=None, term=None):
-        g, v = np.split(g, self.state_dim, axis=-1)
-        t = np.linalg.norm(np.multiply(v, s-g), axis=-1) < 0.001
+    def get_r(self, s, rParams):
+        w, g = np.split(rParams, 2, axis=-1)
+        pos, objs = np.split(s, [2], axis=-1)
+        d = np.linalg.norm(np.multiply(w, objs-g), axis=-1)
+        t = d < 0.001
         r = t * self.rTerm + (1 - t) * self.rNotTerm
-        return t, r
+        return r, t
 
     def process_trajectory(self, trajectory):
-        goals = np.expand_dims(trajectory[-1]['goal'], axis=0)
-        new_trajectory = []
-        n_changes = 0
+        l = len(trajectory)
+        utilities = np.zeros(self.N)
+        processed = []
+
+        for i, exp in enumerate(trajectory):
+            if i == 0:
+                exp['prev'] = None
+            else:
+                exp['prev'] = trajectory[i - 1]
+            if i == l-1:
+                exp['next'] = None
+            else:
+                exp['next'] = trajectory[i+1]
+
+        for exp in reversed(trajectory):
+            changes = np.where(exp['s0'][2:] != exp['s1'][2:])[0]
+            utilities *= self.gamma
+            utilities[changes] += 1
+            exp['u'] = utilities
+            processed.append(exp)
+
+        return processed
+
+    # def process_trajectory(self, trajectory):
+    #     rParams = np.expand_dims(trajectory[-1]['rParams'], axis=0)
+    #     new_trajectory = []
+    #     n_changes = 0
 
         # Reservoir sampling for HER
         # if self.her != 0:
@@ -58,44 +73,44 @@ class Playroom(Wrapper):
         #                 if j < self.her:
         #                     virtual_idx[j] = (i, change)
 
-        for i, exp in enumerate(reversed(trajectory)):
-            if i == 0:
-                exp['next'] = None
-            else:
-                exp['next'] = trajectory[-i]
-
-            # if self.her != 0:
-            #     virtual_goals = [np.hstack([trajectory[idx]['s1'], self.vs[c]]) for idx, c in virtual_idx if idx >= i]
-            #     exp['goal'] = np.vstack([trajectory[-1]['goal']] + virtual_goals)
-            # else:
-            #     exp['goal'] = np.expand_dims(trajectory[-1]['goal'], axis=0)
-
-            # Reservoir sampling for HER
-            if self.her != 0:
-                changes = np.where(exp['s0'][2:] != exp['s1'][2:])[0]
-                for change in changes:
-                    n_changes += 1
-                    v = self.vs[change]
-                    if goals.shape[0] <= self.her:
-                        goals = np.vstack([goals, np.hstack([exp['s1'], v])])
-                    else:
-                        j = np.random.randint(1, n_changes + 1)
-                        if j <= self.her:
-                            goals[j] = np.hstack([exp['s1'], v])
-            exp['goal'] = goals
-
-            exp['terminal'], exp['reward'] = self.get_r(exp['s1'], exp['goal'])
-            new_trajectory.append(exp)
-
-        return new_trajectory
+        # for i, exp in enumerate(reversed(trajectory)):
+        #     if i == 0:
+        #         exp['next'] = None
+        #     else:
+        #         exp['next'] = trajectory[-i]
+        #
+        #     # if self.her != 0:
+        #     #     virtual_goals = [np.hstack([trajectory[idx]['s1'], self.vs[c]]) for idx, c in virtual_idx if idx >= i]
+        #     #     exp['goal'] = np.vstack([trajectory[-1]['goal']] + virtual_goals)
+        #     # else:
+        #     #     exp['goal'] = np.expand_dims(trajectory[-1]['goal'], axis=0)
+        #
+        #     # Reservoir sampling for HER
+        #     if self.her != 0:
+        #         changes = np.where(exp['s0'][2:] != exp['s1'][2:])[0]
+        #         for change in changes:
+        #             n_changes += 1
+        #             v = self.vs[change]
+        #             if goals.shape[0] <= self.her:
+        #                 goals = np.vstack([goals, np.hstack([exp['s1'], v])])
+        #             else:
+        #                 j = np.random.randint(1, n_changes + 1)
+        #                 if j <= self.her:
+        #                     goals[j] = np.hstack([exp['s1'], v])
+        #
+        #     exp['rParams'] = rParams
+        #     # exp['reward'], exp['terminal'] = self.get_r(exp['s1'], exp['rParams'])
+        #     new_trajectory.append(exp)
+        #
+        # return new_trajectory
 
     @property
     def state_dim(self):
-        return 2+len(self.env.objects),
+        return 2 + self.N,
 
     @property
     def goal_dim(self):
-        return 2*(2+len(self.env.objects)),
+        return 2 * self.N,
 
     @property
     def action_dim(self):
