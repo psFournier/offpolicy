@@ -32,6 +32,14 @@ register(
     wrapper_entry_point='env_wrappers.playroom:Playroom'
 )
 
+for N in [4, 16, 64]:
+    register(
+        id='PlayroomBig{}-v0'.format(N),
+        entry_point='envs:PlayroomBig',
+        kwargs={'N': N},
+        wrapper_entry_point='env_wrappers.playroom:Playroom'
+    )
+
 register(
     id='Breakout-v0',
     entry_point='gym.envs.atari:AtariEnv',

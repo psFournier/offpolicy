@@ -39,7 +39,7 @@ Options:
   --demo VAL               [default: -1]
   --tutoronly VAL          [default: -1]
   --initq VAL              [default: 0]
-  --layers VAL             [default: 64,64]
+  --layers VAL             [default: 128,128]
   --her VAL                [default: 0]
   --nstep VAL              [default: 1]
   --alpha VAL              [default: 0]

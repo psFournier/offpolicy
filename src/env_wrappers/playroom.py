@@ -95,7 +95,7 @@ class Playroom(Wrapper):
 
     @property
     def goal_dim(self):
-        return 2*self.state_dim[0],
+        return 2*(2+len(self.env.objects)),
 
     @property
     def action_dim(self):
